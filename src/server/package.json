@@ -1,0 +1,7 @@
+{
+  "name": "game-of-kings-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Joel Walker",
+  "license": "MIT"
+}
