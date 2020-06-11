@@ -1,0 +1,19 @@
+{
+  "name": "game-of-kings-common",
+  "version": "0.0.1",
+  "author": "Joel Walker",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "boardgame.io": "^0.39.12",
+    "honeycomb-grid": "^3.1.7"
+  },
+  "devDependencies": {
+    "typescript": "^3.9.5"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

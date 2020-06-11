@@ -1,8 +1,8 @@
 import React from 'react';
 import { Ctx } from 'boardgame.io';
 
-import { State, hexFactory } from '../common/Game';
-import enumerateMoves from '../common/enumerateMoves';
+import { State, hexFactory } from 'game-of-kings-common';
+import { enumerateMoves } from 'game-of-kings-common';
 
 const Board = ({ G, ctx }: { G: State; ctx: Ctx }) => {
   const [activeMoveType, setActiveMoveType] = React.useState('movePiece');

@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 import { Link } from 'react-router-dom';
 import { Menu, Segment, List, Button } from 'semantic-ui-react';
 
-import { LobbyResponse } from '../common/protocol';
+import { LobbyResponse } from 'game-of-kings-common';
 import { useUser } from './user';
 import LoginModal from './LoginModal';
 import RegisterModal from './RegisterModal';

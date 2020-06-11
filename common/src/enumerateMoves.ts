@@ -2,8 +2,8 @@ import { Ctx } from 'boardgame.io';
 
 import { State } from './Game';
 
-export default (G: State, ctx: Ctx) => {
-  const moves: any[] = [];
+export const enumerateMoves = (G: State, ctx: Ctx) => {
+  const moves: { move: string; args: [number, number] }[] = [];
   G.cells.forEach((originCell, originIndex) => {
     if (originCell.piece && originCell.piece.playerId === ctx.currentPlayer) {
       const isKing = originCell.piece.type === 'k';

@@ -1,0 +1,22 @@
+{
+  "name": "game-of-kings-server",
+  "version": "0.0.1",
+  "author": "Joel Walker",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "boardgame.io": "^0.39.12",
+    "game-of-kings-common": "0.0.1",
+    "uuid": "^8.1.0"
+  },
+  "devDependencies": {
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts"
+  }
+}

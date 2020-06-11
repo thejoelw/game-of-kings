@@ -1,0 +1,19 @@
+{
+  "name": "reactive-net",
+  "version": "0.0.1",
+  "author": "Joel Walker",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@types/pg": "^7.14.3",
+    "pg": "^8.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^3.9.5"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

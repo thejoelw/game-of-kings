@@ -9,7 +9,9 @@ export default <DataType extends unknown>(
 ) => {
   let backoff = intervalMs;
 
-  return class WithEndpoint extends React.Component<{}, DataType | undefined> {
+  return class WithEndpoint extends React.Component<{}, { data?: DataType }> {
+    state = { data: undefined };
+
     componentDidMount() {
       this.requestUpdate(false);
     }
@@ -18,7 +20,7 @@ export default <DataType extends unknown>(
       axios
         .get<DataType>(`${endpoint}?block=${Number(block)}`)
         .then((resp) => {
-          this.setState(resp.data);
+          this.setState({ data: resp.data });
           backoff = intervalMs;
         })
         .catch((err) => {
@@ -29,7 +31,7 @@ export default <DataType extends unknown>(
         .then(() => this.requestUpdate(true));
 
     render() {
-      return <Component {...this.props} endpointData={this.state} />;
+      return <Component {...this.props} endpointData={this.state.data} />;
     }
   };
 };

@@ -6,6 +6,7 @@ import { Modal, Button, Form, Input } from 'semantic-ui-react';
 export default () => {
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
 
   return (
     <Modal trigger={<Button>Login</Button>}>
@@ -22,21 +23,33 @@ export default () => {
           <Form.Field>
             <Input
               type="password"
-              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              error={password !== confirmPassword}
+            />
+          </Form.Field>
+
+          <Form.Field>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              error={password !== confirmPassword}
             />
           </Form.Field>
 
           <Button
             type="submit"
+            disabled={password !== confirmPassword}
             onClick={() =>
-              axios
-                .post('/login', { username, password })
-                .then((resp) => resp.data.success && onClose())
+              password === confirmPassword
+                ? axios
+                    .post('/register', { username, password })
+                    .then((resp) => resp.data.success)
+                : null
             }
           >
-            Log In
+            Register
           </Button>
         </Form>
       </Modal.Content>

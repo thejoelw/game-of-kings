@@ -1,7 +1,7 @@
 import { Game, Ctx } from 'boardgame.io';
-import Honeycomb from 'honeycomb-grid';
+import * as Honeycomb from 'honeycomb-grid';
 
-import enumerateMoves from './enumerateMoves';
+import { enumerateMoves } from './enumerateMoves';
 
 export interface Piece {
   playerId: string;
@@ -27,7 +27,7 @@ export interface State {
   result?: { winner: string } | { draw: true };
 }
 
-export default {
+export const gameDefinition = {
   name: 'Game of Kings',
 
   setup: (): State => {

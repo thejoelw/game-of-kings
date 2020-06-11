@@ -3,7 +3,7 @@ import React from 'react';
 import Client from './Client';
 import MatchList from './MatchList';
 
-import { LobbyResponse } from '../common/protocol';
+import { LobbyResponse } from 'game-of-kings-common';
 import withEndpoint from './withEndpoint';
 
 const Lobby = ({ endpointData }: { endpointData?: LobbyResponse }) => {
