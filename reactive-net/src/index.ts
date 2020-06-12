@@ -1,7 +1,7 @@
 import { Pool, Client } from 'pg';
 
 import proxyFactory from './proxyFactory';
-import { DataSource, makePgSource } from './DataSource';
+import { DataSource, RetryError, makePgSource } from './DataSource';
 
 export type DbConfig = {
   hostname: string;
@@ -12,6 +12,8 @@ const Network = ({  }: {} = {}) => {
   const pool = new Pool({ max: 4 });
 
   const register = (mapper: (state: any) => any) => {
+    let backoff = 0;
+
     const run = async () => {
       const client = await pool.connect();
 
@@ -80,9 +82,17 @@ const Network = ({  }: {} = {}) => {
         source.throwError();
 
         await client.query('COMMIT');
+
+        backoff /= 2;
       } catch (e) {
         await client.query('ROLLBACK');
-        throw e;
+        if (e instanceof RetryError) {
+          setTimeout(run, backoff);
+          backoff *= 1.5;
+          backoff += 100;
+        } else {
+          throw e;
+        }
       } finally {
         client.release();
       }

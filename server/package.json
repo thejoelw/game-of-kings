@@ -9,6 +9,7 @@
   "dependencies": {
     "boardgame.io": "^0.39.12",
     "game-of-kings-common": "0.0.1",
+    "pg": "^8.2.1",
     "uuid": "^8.1.0"
   },
   "devDependencies": {
