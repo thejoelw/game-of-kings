@@ -7,8 +7,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
+    "@types/koa-router": "^7.4.1",
+    "@types/pg": "^7.14.3",
     "boardgame.io": "^0.39.12",
     "game-of-kings-common": "0.0.1",
+    "koa-router": "^9.0.1",
+    "node-persist": "^3.1.0",
     "pg": "^8.2.1",
     "uuid": "^8.1.0"
   },

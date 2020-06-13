@@ -8,39 +8,49 @@ export interface Piece {
   type: 'k' | 'p';
   spawnsAvailable: number;
 }
-type HexData = {
-  neighborIndices: number[];
+export interface Cell {
   piece?: Piece;
-};
 
-export type Hex = Honeycomb.Hex<HexData>;
-export const hexFactory = Honeycomb.extendHex<HexData>({
-  size: 1,
+  neighborIndices: number[];
 
-  neighborIndices: [],
-  piece: undefined,
-});
-
+  x: number;
+  y: number;
+}
 export interface State {
-  cells: Honeycomb.Grid<Hex>;
+  cells: Cell[];
   drawOffered: Record<string, true | undefined>;
   result?: { winner: string } | { draw: true };
 }
 
+export const hexFactory = Honeycomb.extendHex({
+  size: 1,
+  orientation: 'pointy', // 'flat' or 'pointy'
+});
+
 export const gameDefinition = {
-  name: 'Game of Kings',
+  name: 'game-of-kings',
 
   setup: (): State => {
-    const cells = Honeycomb.defineGrid(hexFactory).hexagon({
-      radius: 5,
-      center: [0, 0],
-    });
-    cells.forEach((hex) => {
-      hex.neighborIndices = cells.neighborsOf(hex).map((n) => cells.indexOf(n));
-    });
+    const cells = Honeycomb.defineGrid(hexFactory)
+      .hexagon({
+        radius: 5,
+        center: [0, 0],
+      })
+      .map(
+        (hex, _, grid): Cell => ({
+          piece: ({
+            '1,-2,1': { playerId: '0', type: 'k', spawnsAvailable: 10 },
+            '-1,2,-1': { playerId: '1', type: 'k', spawnsAvailable: 10 },
+          } as { [key: string]: Piece })[`${hex.q},${hex.r},${hex.s}`],
+
+          neighborIndices: grid.neighborsOf(hex).map((n) => grid.indexOf(n)),
+
+          ...hex.toPoint(),
+        }),
+      );
 
     return {
-      cells,
+      cells: [...cells],
       drawOffered: {},
       result: undefined,
     };
@@ -106,7 +116,7 @@ export const gameDefinition = {
 
   ai: { enumerate: enumerateMoves },
 
-  playerView: (G: State, ctx: Ctx, playerId: number) => G,
+  playerView: (G: State, ctx: Ctx, playerId: string) => G,
 
   seed: '123',
 

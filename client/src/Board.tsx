@@ -1,36 +1,130 @@
 import React from 'react';
 import { Ctx } from 'boardgame.io';
+import chroma from 'chroma-js';
 
 import { State, hexFactory } from 'game-of-kings-common';
 import { enumerateMoves } from 'game-of-kings-common';
 
-const Board = ({ G, ctx }: { G: State; ctx: Ctx }) => {
-  const [activeMoveType, setActiveMoveType] = React.useState('movePiece');
+const corners = hexFactory()
+  .corners()
+  .map(({ x, y }) => ({
+    x: x - hexFactory().width() / 2,
+    y: y - hexFactory().height() / 2,
+  }));
 
-  const moves = enumerateMoves(G, ctx);
+const cellScale = 1;
+
+const colors = ['blue', 'red'];
+
+const Board = ({
+  G,
+  ctx,
+  moves,
+  events,
+  reset,
+  undo,
+  redo,
+  log,
+  gameID,
+  playerID,
+  gameMetadata,
+
+  isActive,
+  isMultiplayer,
+  isConnected,
+  credentials,
+}: {
+  G: State;
+  ctx: Ctx;
+  moves: {
+    movePiece: (time: number, originIndex: number, destIndex: number) => void;
+    spawnPiece: (time: number, originIndex: number, destIndex: number) => void;
+    offerDraw: (time: number, value: boolean) => void;
+  };
+  events: {
+    endTurn: () => void;
+  };
+  reset: () => void;
+  undo: () => void;
+  redo: () => void;
+  log: any[];
+  gameID: string;
+  playerID: string;
+  gameMetadata: {}[];
+  isActive: boolean;
+  isMultiplayer: boolean;
+  isConnected: boolean;
+  credentials: string;
+}) => {
+  const [activeMoveType, setActiveMoveType] = React.useState<
+    'movePiece' | 'spawnPiece'
+  >('movePiece');
+  const [selectedCellIndex, selectCellIndex] = React.useState<
+    number | undefined
+  >(undefined);
+
+  const validMoves = enumerateMoves(G, ctx);
+
+  const size = Math.sqrt(G.cells.length) * 1.1;
+
   console.log(moves);
 
   return (
     <svg
-      viewBox="0 0 80 20"
+      viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}
       xmlns="http://www.w3.org/2000/svg"
       xmlnsXlink="http://www.w3.org/1999/xlink"
     >
-      <symbol id="hex" width="10" height="10" viewBox="0 0 2 2">
-        <circle cx="0" cy="0" r="1" />
-        <polygon
-          points={hexFactory()
-            .corners()
-            .map(({ x, y }: { x: number; y: number }) => `${x},${y}`)
-            .join(' ')}
-          fill="none"
-          stroke="black"
-        />
-      </symbol>
+      {G.cells.map((hex, index) => {
+        const move =
+          isActive &&
+          validMoves.find(
+            (m) =>
+              m.move === activeMoveType &&
+              m.args[0] === selectedCellIndex &&
+              m.args[1] === index,
+          );
 
-      {G.cells.map((hex) => (
-        <use xlinkHref="#hex" x={hex.x} y={hex.y} style={{ opacity: 1.0 }} />
-      ))}
+        let color = chroma(hex.piece ? colors[0] : 'silver');
+        if (hex.piece && hex.piece.type === 'k') {
+          color = chroma.scale([color, 'white'])(0.7);
+        }
+        if (move) {
+          color = color.darken();
+        }
+
+        let onClick = move
+          ? () => {
+              (moves as Record<string, (...args: any[]) => void>)[move.move](
+                Date.now(),
+                ...move.args,
+              );
+              events.endTurn();
+              selectCellIndex(undefined);
+            }
+          : hex.piece
+          ? () => {
+              selectCellIndex(index);
+              setActiveMoveType('movePiece');
+            }
+          : null;
+
+        return (
+          <polygon
+            key={index}
+            points={corners
+              .map(
+                ({ x, y }: { x: number; y: number }) =>
+                  `${hex.x + x * cellScale},${hex.y + y * cellScale}`,
+              )
+              .join(' ')}
+            fill={color.hex()}
+            stroke="black"
+            strokeWidth="0.1"
+            opacity="1"
+          />
+        );
+      })}
     </svg>
   );
 

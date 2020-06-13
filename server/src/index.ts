@@ -1,4 +1,73 @@
-const Server = require('boardgame.io/server').Server;
+import { Server, FlatFile } from 'boardgame.io/server';
+// import { Pool, Client } from 'pg';
+// import Router from 'koa-router';
+
+import { gameDefinition } from 'game-of-kings-common';
+
+// const pool = new Pool({ max: 4 });
+
+const authService = {
+  decodeToken: (header: string) => Promise.resolve({ uid: '123' }),
+};
+
+const server = Server({
+  games: [gameDefinition],
+
+  // db: new FlatFile({
+  //   dir: './storage',
+  //   logging: true,
+  //   ttl: false,
+  // }),
+
+  generateCredentials: async (ctx) => {
+    const authHeader = ctx.request.headers['authorization'];
+    const token = await authService.decodeToken(authHeader);
+    return token.uid;
+  },
+
+  authenticateCredentials: async (credentials, playerMetadata) => {
+    if (credentials) {
+      const token = await authService.decodeToken(credentials);
+      if (token.uid === playerMetadata.credentials) return true;
+    }
+    return false;
+  },
+});
+
+/*
+const router = new Router();
+
+router.get('/lobby', async (ctx) => {
+  if (parseInt(ctx.request.query.block)) {
+    await new Promise((resolve) => gameListeners.push(resolve));
+  }
+
+  const user = getUser(ctx);
+
+  ctx.body = {
+    user: externalizeUser(user),
+    games: Object.keys(games)
+      .map((id) => games[id])
+      .filter(
+        (game) =>
+          game.players.length < 2 ||
+          game.players.find((p) => p._id === user._id),
+      )
+      .map((game) => ({
+        ...game,
+        players: game.players.map(externalizeUser),
+      })),
+  };
+});
+
+server.app.use(router.routes());
+*/
+
+server.run(3001, () => console.log('server running...'));
+
+// PGUSER=dbuser PGHOST=database.server.com PGPASSWORD=secretpassword PGDATABASE=mydb PGPORT=3211 node script.js
+
+/*
 const session = require('koa-session');
 const serve = require('koa-static');
 const bodyParser = require('koa-bodyparser');
@@ -281,3 +350,4 @@ const externalizeUser = (user) => ({
     () => console.log('server running...'),
   );
 })();
+*/

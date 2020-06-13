@@ -1,34 +1,45 @@
 import React from 'react';
 import axios from 'axios';
+import * as t from 'io-ts';
+import { PathReporter } from 'io-ts/lib/PathReporter';
+import { isLeft } from 'fp-ts/lib/Either';
 
 const intervalMs = 1000;
 
-export default <DataType extends unknown>(
+export default <CodecType extends t.Any>(
   endpoint: string,
-  Component: React.ComponentType<{ endpointData?: DataType }>,
+  codec: CodecType,
+  Component: React.ComponentType<{ endpointData?: t.TypeOf<CodecType> }>,
 ) => {
   let backoff = intervalMs;
 
-  return class WithEndpoint extends React.Component<{}, { data?: DataType }> {
+  return class WithEndpoint extends React.Component<
+    {},
+    { data?: t.TypeOf<CodecType> }
+  > {
     state = { data: undefined };
 
     componentDidMount() {
-      this.requestUpdate(false);
+      this.requestUpdate();
     }
 
-    requestUpdate = (block: boolean): Promise<void> =>
+    requestUpdate = (): Promise<void> =>
       axios
-        .get<DataType>(`${endpoint}?block=${Number(block)}`)
+        .get(endpoint)
         .then((resp) => {
-          this.setState({ data: resp.data });
+          const result = codec.decode(resp.data);
+          if (isLeft(result)) {
+            throw new Error(PathReporter.report(result).join('\n'));
+          }
+          this.setState({ data: result.right });
           backoff = intervalMs;
         })
         .catch((err) => {
           console.error(err);
           backoff *= 1.5;
-          return new Promise((resolve) => setTimeout(resolve, backoff));
         })
-        .then(() => this.requestUpdate(true));
+        .then(() => new Promise((resolve) => setTimeout(resolve, backoff)))
+        .then(this.requestUpdate);
 
     render() {
       return <Component {...this.props} endpointData={this.state.data} />;

@@ -4,12 +4,24 @@ import { v4 as uuid } from 'uuid';
 import { Link } from 'react-router-dom';
 import { Menu, Segment, List, Button } from 'semantic-ui-react';
 
-import { LobbyResponse } from 'game-of-kings-common';
+import { gameDefinition } from 'game-of-kings-common';
 import { useUser } from './user';
 import LoginModal from './LoginModal';
 import RegisterModal from './RegisterModal';
 
-export default ({ lobbyData }: { lobbyData?: LobbyResponse }) => {
+export default ({
+  rooms,
+}: {
+  rooms?: {
+    gameID: string;
+    players: {
+      id: number;
+      name?: string;
+      data?: { id: string; rating: number };
+    }[];
+    setupData: any;
+  }[];
+}) => {
   const user = useUser();
 
   return (
@@ -21,31 +33,46 @@ export default ({ lobbyData }: { lobbyData?: LobbyResponse }) => {
 
       <Segment>
         <List>
-          {lobbyData && lobbyData.matches
-            ? lobbyData.matches.map((match) => {
-                const isJoined = match.players.some(
-                  (player) => player.id === user.id,
+          {rooms
+            ? rooms.map(({ gameID, players }) => {
+                const isJoined = players.some(
+                  (player) => player.data && player.data.id === user.id,
                 );
                 return (
                   <List.Item
-                    key={match.id}
+                    key={gameID}
                     as={Link}
                     to={
-                      isJoined && match.players.length === 2
-                        ? `/match/${match.id}`
+                      isJoined && players.length === 2
+                        ? `/match/${gameID}`
                         : undefined
                     }
                     onClick={
                       isJoined
                         ? undefined
-                        : () => axios.post(`/join_match/${match.id}`)
+                        : () =>
+                            axios
+                              .post(
+                                `/games/${gameDefinition.name}/${gameID}/join`,
+                                {
+                                  playerID: 0,
+                                  playerName: 'joel',
+                                  data: {
+                                    id: 'abc',
+                                    rating: 700,
+                                  },
+                                },
+                              )
+                              .then((resp) => resp.data.playerCredentials)
+                              .then((a) => console.log(a))
                     }
                   >
                     <List.Content>
                       <List.Header>Join Match</List.Header>
                       <List.Description>
-                        {match.players
-                          .map((p) => `${p.username} (${p.rating})`)
+                        {players
+                          .filter((p) => p.name && p.data)
+                          .map((p) => `${p.name} (${p.data!.rating})`)
                           .join(', ')}
                       </List.Description>
                     </List.Content>
@@ -55,7 +82,17 @@ export default ({ lobbyData }: { lobbyData?: LobbyResponse }) => {
             : 'loading...'}
         </List>
 
-        <Button onClick={() => axios.post(`/join_match/${uuid()}`)}>
+        <Button
+          onClick={() =>
+            axios
+              .post(`/games/${gameDefinition.name}/create`, {
+                numPlayers: 2,
+                setupData: {},
+                unlisted: false,
+              })
+              .then((resp) => resp.data.gameID)
+          }
+        >
           Create Game
         </Button>
       </Segment>
