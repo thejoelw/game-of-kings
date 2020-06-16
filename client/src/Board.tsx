@@ -2,8 +2,10 @@ import React from 'react';
 import { Ctx } from 'boardgame.io';
 import chroma from 'chroma-js';
 
-import { State, hexFactory } from 'game-of-kings-common';
-import { enumerateMoves } from 'game-of-kings-common';
+import { State, hexFactory, enumerateMoves } from 'game-of-kings-common';
+
+import { CountdownTimer, PausedTimer } from './Timer';
+import HexPoly from './HexPoly';
 
 const corners = hexFactory()
   .corners()
@@ -56,76 +58,209 @@ const Board = ({
   isConnected: boolean;
   credentials: string;
 }) => {
-  const [activeMoveType, setActiveMoveType] = React.useState<
-    'movePiece' | 'spawnPiece'
-  >('movePiece');
   const [selectedCellIndex, selectCellIndex] = React.useState<
     number | undefined
-  >(undefined);
+  >();
+  const [moveDst, setMoveDst] = React.useState<number | undefined>();
+
+  // const [activeMoveType, setActiveMoveType] = React.useState<
+  //   'movePiece' | 'spawnPiece'
+  // >('movePiece');
+
+  React.useEffect(() => {
+    const cb = (event: MouseEvent) => {
+      selectCellIndex(undefined);
+      setMoveDst(undefined);
+    };
+    window.addEventListener('mouseup', cb);
+    return () => window.removeEventListener('mouseup', cb);
+  }, []);
 
   const validMoves = enumerateMoves(G, ctx);
 
   const size = Math.sqrt(G.cells.length) * 1.1;
 
-  console.log(moves);
+  console.log({
+    G,
+    ctx,
+    moves,
+    events,
+    reset,
+    undo,
+    redo,
+    log,
+    gameID,
+    playerID,
+    gameMetadata,
+
+    isActive,
+    isMultiplayer,
+    isConnected,
+    credentials,
+  });
+
+  console.log(validMoves, selectedCellIndex);
 
   return (
-    <svg
-      viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}
-      xmlns="http://www.w3.org/2000/svg"
-      xmlnsXlink="http://www.w3.org/1999/xlink"
-    >
-      {G.cells.map((hex, index) => {
-        const move =
-          isActive &&
-          validMoves.find(
-            (m) =>
-              m.move === activeMoveType &&
-              m.args[0] === selectedCellIndex &&
-              m.args[1] === index,
+    <>
+      <svg
+        viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}
+        xmlns="http://www.w3.org/2000/svg"
+        xmlnsXlink="http://www.w3.org/1999/xlink"
+        style={{ flex: '1' }}
+      >
+        {G.cells.map((cell, index) => {
+          const move =
+            isActive &&
+            validMoves.find(
+              (m) =>
+                // m.move === activeMoveType &&
+                m.args[0] === selectedCellIndex && m.args[1] === index,
+            );
+
+          return (
+            <HexPoly
+              cell={cell}
+              color={move ? '#E0E0E0' : '#C0C0C0'}
+              scale={1}
+              onMouseDown={undefined}
+              onMouseOver={move ? () => setMoveDst(index) : undefined}
+            />
           );
+        })}
 
-        let color = chroma(hex.piece ? colors[0] : 'silver');
-        if (hex.piece && hex.piece.type === 'k') {
-          color = chroma.scale([color, 'white'])(0.7);
-        }
-        if (move) {
-          color = color.darken();
-        }
+        {G.cells.map((cell, index) => {
+          if (!cell.piece) {
+            return;
+          }
 
-        let onClick = move
-          ? () => {
-              (moves as Record<string, (...args: any[]) => void>)[move.move](
-                Date.now(),
-                ...move.args,
-              );
-              events.endTurn();
-              selectCellIndex(undefined);
+          const move =
+            isActive &&
+            validMoves.find(
+              (m) =>
+                // m.move === activeMoveType &&
+                m.args[0] === selectedCellIndex && m.args[1] === index,
+            );
+
+          let color = chroma(colors[0]);
+          if (cell.piece.type === 'k') {
+            color = chroma.scale([color, 'white'])(0.7);
+          }
+          if (move) {
+            color = color.darken();
+          }
+
+          let onClick = move
+            ? () => {
+                (moves as Record<string, (...args: any[]) => void>)[move.move](
+                  Date.now(),
+                  ...move.args,
+                );
+                events.endTurn();
+                selectCellIndex(undefined);
+              }
+            : () => {
+                selectCellIndex(index);
+                // setActiveMoveType('movePiece');
+              };
+
+          return (
+            <HexPoly
+              cell={
+                index === selectedCellIndex && moveDst !== undefined
+                  ? G.cells[moveDst]
+                  : cell
+              }
+              color={color.hex()}
+              scale={index === selectedCellIndex ? 0.8 : 1}
+              onMouseDown={() => selectCellIndex(index)}
+              onMouseOver={undefined}
+            />
+          );
+        })}
+
+        {/*G.cells.map((hex, index) => {
+          const zeros =
+            Number(hex.q === 0) + Number(hex.r === 0) + Number(hex.s === 0);
+          let text: string | undefined;
+          if (zeros === 2) {
+            if (hex.q === 0) {
+              text = `${hex.q}q`;
             }
-          : hex.piece
-          ? () => {
-              selectCellIndex(index);
-              setActiveMoveType('movePiece');
+            if (hex.r === 0) {
+              text = `${hex.q}q`;
             }
-          : null;
+            if (hex.s === 0) {
+              text = `${hex.q}q`;
+            }
+          } else if (zeros === 3) {
+            text = '0';
+          } else {
+            text = `${hex.q}q+${hex.r}r+${hex.s}s`;
+          }
 
-        return (
-          <polygon
-            key={index}
-            points={corners
-              .map(
-                ({ x, y }: { x: number; y: number }) =>
-                  `${hex.x + x * cellScale},${hex.y + y * cellScale}`,
-              )
-              .join(' ')}
-            fill={color.hex()}
-            stroke="black"
-            strokeWidth="0.1"
-            opacity="1"
-          />
-        );
-      })}
-    </svg>
+          return (
+            text && (
+              <text
+                x={hex.x}
+                y={hex.y + 0.1}
+                textAnchor="middle"
+                fontSize={0.2}
+                fill={'black'}
+              >
+                {text}
+              </text>
+            )
+          );
+        })*/}
+      </svg>
+
+      <div
+        style={{
+          width: '250px',
+          backgroundColor: '#eeeeee',
+          boxShadow: '0 0 8px 0 gray',
+          zIndex: 2,
+          padding: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {`
+        game type
+
+        foreach player:
+          name
+          rating
+          timer
+
+        move history
+        resign
+        `}
+
+        <CountdownTimer
+          endTime={Date.now() + G.players[0].timeLeftMs}
+          totalTimeMs={5 * 60 * 1000}
+          attachPosition="bottom"
+        />
+
+        <div style={{ flex: '1' }}></div>
+        <hr
+          style={{
+            // boxShadow: 'silver 0px 0px 2px 1px',
+            border: '0.5px solid silver',
+            margin: '16px 8px',
+          }}
+        />
+        <div style={{ flex: '1' }}></div>
+
+        <CountdownTimer
+          endTime={Date.now() + G.players[1].timeLeftMs}
+          totalTimeMs={5 * 60 * 1000}
+          attachPosition="top"
+        />
+      </div>
+    </>
   );
 
   /*

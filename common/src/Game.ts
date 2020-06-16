@@ -4,20 +4,28 @@ import * as Honeycomb from 'honeycomb-grid';
 import { enumerateMoves } from './enumerateMoves';
 
 export interface Piece {
-  playerId: string;
+  playerIndex: number;
   type: 'k' | 'p';
-  spawnsAvailable: number;
 }
 export interface Cell {
   piece?: Piece;
 
   neighborIndices: number[];
 
+  q: number;
+  r: number;
+  s: number;
+
   x: number;
   y: number;
 }
+export interface Player {
+  spawnsAvailable: number;
+  timeLeftMs: number;
+}
 export interface State {
   cells: Cell[];
+  players: Player[];
   drawOffered: Record<string, true | undefined>;
   result?: { winner: string } | { draw: true };
 }
@@ -30,7 +38,7 @@ export const hexFactory = Honeycomb.extendHex({
 export const gameDefinition = {
   name: 'game-of-kings',
 
-  setup: (): State => {
+  setup: (ctx: Ctx, setupData: {}): State => {
     const cells = Honeycomb.defineGrid(hexFactory)
       .hexagon({
         radius: 5,
@@ -39,18 +47,25 @@ export const gameDefinition = {
       .map(
         (hex, _, grid): Cell => ({
           piece: ({
-            '1,-2,1': { playerId: '0', type: 'k', spawnsAvailable: 10 },
-            '-1,2,-1': { playerId: '1', type: 'k', spawnsAvailable: 10 },
+            '1,-2,1': { playerIndex: 0, type: 'k' },
+            '-1,2,-1': { playerIndex: 1, type: 'k' },
           } as { [key: string]: Piece })[`${hex.q},${hex.r},${hex.s}`],
 
           neighborIndices: grid.neighborsOf(hex).map((n) => grid.indexOf(n)),
 
+          q: hex.q,
+          r: hex.r,
+          s: hex.s,
           ...hex.toPoint(),
         }),
       );
 
     return {
       cells: [...cells],
+      players: Array.from({ length: ctx.numPlayers }, (i) => ({
+        spawnsAvailable: 10,
+        timeLeftMs: 5 * 60 * 1000,
+      })),
       drawOffered: {},
       result: undefined,
     };
@@ -73,7 +88,7 @@ export const gameDefinition = {
 
       if (destCell.piece) {
         if (originCell.piece.type === 'k') {
-          originCell.piece.spawnsAvailable++;
+          G.players[originCell.piece.playerIndex].spawnsAvailable++;
         }
         if (destCell.piece.type === 'k') {
           G.result = { winner: ctx.currentPlayer };
@@ -102,11 +117,10 @@ export const gameDefinition = {
       }
 
       destCell.piece = {
-        playerId: originCell.piece.playerId,
+        playerIndex: originCell.piece.playerIndex,
         type: 'p',
-        spawnsAvailable: 0,
       };
-      originCell.piece.spawnsAvailable--;
+      G.players[originCell.piece.playerIndex].spawnsAvailable--;
     },
 
     offerDraw(G: State, ctx: Ctx, time: number, value: boolean) {

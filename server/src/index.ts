@@ -1,14 +1,15 @@
 import { Server, FlatFile } from 'boardgame.io/server';
-// import { Pool, Client } from 'pg';
-// import Router from 'koa-router';
+import Router from 'koa-router';
+import koaBody from 'koa-body';
+import koaSession from 'koa-session';
+import argon2 from 'argon2';
+import { v4 as uuidv4 } from 'uuid';
+// import jwt from 'jsonwebtoken';
 
 import { gameDefinition } from 'game-of-kings-common';
 
-// const pool = new Pool({ max: 4 });
-
-const authService = {
-  decodeToken: (header: string) => Promise.resolve({ uid: '123' }),
-};
+import authService from './authService';
+import pool from './dbPool';
 
 const server = Server({
   games: [gameDefinition],
@@ -19,49 +20,98 @@ const server = Server({
   //   ttl: false,
   // }),
 
+  /*
   generateCredentials: async (ctx) => {
-    const authHeader = ctx.request.headers['authorization'];
-    const token = await authService.decodeToken(authHeader);
-    return token.uid;
+    var jwt = require('jsonwebtoken');
+var token = jwt.sign({ foo: 'bar' }, 'shhhhh');
+
+    console.log(ctx, ctx.req.user, ctx.session);
+    return 'iuabf';
+    // const authHeader = ctx.request.headers['authorization'];
+    // const token = await authService.decodeToken(authHeader);
+    // return token.uid;
   },
 
   authenticateCredentials: async (credentials, playerMetadata) => {
-    if (credentials) {
-      const token = await authService.decodeToken(credentials);
-      if (token.uid === playerMetadata.credentials) return true;
-    }
-    return false;
+    console.log(credentials, playerMetadata);
+    return true;
+    // if (credentials) {
+    //   const token = await authService.decodeToken(credentials);
+    //   if (token.uid === playerMetadata.credentials) return true;
+    // }
+    // return false;
   },
+  */
 });
 
-/*
+server.app.proxy = true;
+
+server.app.keys = ['n53QZl1x7iwAW5Na'];
+server.app.use(koaSession({ renew: true }, server.app));
+
+server.app.use(authService.initialize());
+server.app.use(authService.session());
+
 const router = new Router();
 
-router.get('/lobby', async (ctx) => {
-  if (parseInt(ctx.request.query.block)) {
-    await new Promise((resolve) => gameListeners.push(resolve));
+router.post(
+  '/login',
+  koaBody(),
+  authService.authenticate('local', { failureRedirect: '/login' }),
+  (ctx) => {
+    const user = (ctx.req as any).user;
+    ctx.body = {
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+      },
+    };
+  },
+);
+
+router.post('/register', koaBody(), async (ctx) => {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)`,
+      [
+        uuidv4(),
+        ctx.request.body.username,
+        await argon2.hash(ctx.request.body.password),
+      ],
+    );
+
+    ctx.body = { success: true };
+  } catch (err) {
+    if (
+      err.code == '23505' &&
+      err.schema === 'public' &&
+      err.table === 'users' &&
+      err.constraint === 'idx_username_unique'
+    ) {
+      // Duplicate username error
+      ctx.status = 409;
+      ctx.body = {
+        error: {
+          message: "Can't register user because username is already taken",
+        },
+      };
+      return;
+    }
+
+    console.error(err);
+
+    ctx.status = 500;
+    ctx.body = {
+      error: { message: "Can't register user for some reason" },
+    };
+  } finally {
+    client.release();
   }
-
-  const user = getUser(ctx);
-
-  ctx.body = {
-    user: externalizeUser(user),
-    games: Object.keys(games)
-      .map((id) => games[id])
-      .filter(
-        (game) =>
-          game.players.length < 2 ||
-          game.players.find((p) => p._id === user._id),
-      )
-      .map((game) => ({
-        ...game,
-        players: game.players.map(externalizeUser),
-      })),
-  };
 });
 
 server.app.use(router.routes());
-*/
 
 server.run(3001, () => console.log('server running...'));
 

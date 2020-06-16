@@ -2,12 +2,10 @@ import React from 'react';
 import axios from 'axios';
 import { v4 as uuid } from 'uuid';
 import { Link } from 'react-router-dom';
-import { Menu, Segment, List, Button } from 'semantic-ui-react';
+import { Segment, List, Button } from 'semantic-ui-react';
 
 import { gameDefinition } from 'game-of-kings-common';
 import { useUser } from './user';
-import LoginModal from './LoginModal';
-import RegisterModal from './RegisterModal';
 
 export default ({
   rooms,
@@ -26,11 +24,6 @@ export default ({
 
   return (
     <>
-      <Menu fixed="top">
-        <LoginModal />
-        <RegisterModal />
-      </Menu>
-
       <Segment>
         <List>
           {rooms

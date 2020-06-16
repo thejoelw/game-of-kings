@@ -3,9 +3,12 @@ import { Ctx } from 'boardgame.io';
 import { State } from './Game';
 
 export const enumerateMoves = (G: State, ctx: Ctx) => {
+  console.log(ctx);
+  const curPlayerIndex = 0;
+
   const moves: { move: string; args: [number, number] }[] = [];
   G.cells.forEach((originCell, originIndex) => {
-    if (originCell.piece && originCell.piece.playerId === ctx.currentPlayer) {
+    if (originCell.piece && originCell.piece.playerIndex === curPlayerIndex) {
       const isKing = originCell.piece.type === 'k';
 
       originCell.neighborIndices.forEach((destIndex, neighborIndex) => {
@@ -16,7 +19,7 @@ export const enumerateMoves = (G: State, ctx: Ctx) => {
 
         if (
           !destCell.piece ||
-          (destCell.piece.playerId !== ctx.currentPlayer &&
+          (destCell.piece.playerIndex !== curPlayerIndex &&
             (isKing || destCell.piece.type === 'k'))
         ) {
           moves.push({
@@ -25,7 +28,10 @@ export const enumerateMoves = (G: State, ctx: Ctx) => {
           });
         }
 
-        if (isKing && originCell.piece!.spawnsAvailable > 0) {
+        if (
+          isKing &&
+          G.players[originCell.piece!.playerIndex].spawnsAvailable > 0
+        ) {
           moves.push({
             move: 'spawnPiece',
             args: [originIndex, destIndex],
@@ -37,7 +43,7 @@ export const enumerateMoves = (G: State, ctx: Ctx) => {
           return;
         }
         const p2 = G.cells[i2];
-        if (!p2.piece || p2.piece.playerId !== ctx.currentPlayer) {
+        if (!p2.piece || p2.piece.playerIndex !== curPlayerIndex) {
           return;
         }
 
@@ -55,14 +61,14 @@ export const enumerateMoves = (G: State, ctx: Ctx) => {
           return;
         }
         const p4 = G.cells[i4];
-        if (!p4.piece || p4.piece.playerId !== ctx.currentPlayer) {
+        if (!p4.piece || p4.piece.playerIndex !== curPlayerIndex) {
           return;
         }
 
         do {
           const testCell = G.cells[destIndex];
           if (testCell.piece) {
-            if (testCell.piece.playerId !== ctx.currentPlayer) {
+            if (testCell.piece.playerIndex !== curPlayerIndex) {
               moves.push({
                 move: 'movePiece',
                 args: [originIndex, destIndex],

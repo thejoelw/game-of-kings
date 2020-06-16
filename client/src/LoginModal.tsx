@@ -8,7 +8,7 @@ export default () => {
   const [password, setPassword] = React.useState('');
 
   return (
-    <Modal trigger={<Button>Login</Button>}>
+    <Modal trigger={<div style={{ cursor: 'pointer' }}>Login</div>}>
       <Modal.Header>Login</Modal.Header>
       <Modal.Content image>
         <Form>

@@ -18,28 +18,36 @@ export default <CodecType extends t.Any>(
     { data?: t.TypeOf<CodecType> }
   > {
     state = { data: undefined };
+    myIsMounted = false;
 
     componentDidMount() {
+      this.myIsMounted = true;
       this.requestUpdate();
     }
 
+    componentWillUnmount() {
+      this.myIsMounted = false;
+    }
+
     requestUpdate = (): Promise<void> =>
-      axios
-        .get(endpoint)
-        .then((resp) => {
-          const result = codec.decode(resp.data);
-          if (isLeft(result)) {
-            throw new Error(PathReporter.report(result).join('\n'));
-          }
-          this.setState({ data: result.right });
-          backoff = intervalMs;
-        })
-        .catch((err) => {
-          console.error(err);
-          backoff *= 1.5;
-        })
-        .then(() => new Promise((resolve) => setTimeout(resolve, backoff)))
-        .then(this.requestUpdate);
+      this.myIsMounted
+        ? axios
+            .get(endpoint)
+            .then((resp) => {
+              const result = codec.decode(resp.data);
+              if (isLeft(result)) {
+                throw new Error(PathReporter.report(result).join('\n'));
+              }
+              this.setState({ data: result.right });
+              backoff = intervalMs;
+            })
+            .catch((err) => {
+              console.error(err);
+              backoff *= 1.5;
+            })
+            .then(() => new Promise((resolve) => setTimeout(resolve, backoff)))
+            .then(this.requestUpdate)
+        : Promise.resolve();
 
     render() {
       return <Component {...this.props} endpointData={this.state.data} />;
