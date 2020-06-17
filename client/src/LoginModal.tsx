@@ -1,16 +1,40 @@
 import React from 'react';
 import axios from 'axios';
+import {
+  Modal,
+  Button,
+  Form,
+  Input,
+  Dimmer,
+  Loader,
+  Message,
+} from 'semantic-ui-react';
 
-import { Modal, Button, Form, Input } from 'semantic-ui-react';
+import { setUser } from './user';
 
 export default () => {
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
 
+  const [status, setStatus] = React.useState<
+    'closed' | 'input' | 'loading' | 'bad auth' | 'error'
+  >('closed');
+
   return (
-    <Modal trigger={<div style={{ cursor: 'pointer' }}>Login</div>}>
+    <Modal
+      trigger={
+        <div style={{ cursor: 'pointer' }} onClick={() => setStatus('input')}>
+          Login
+        </div>
+      }
+      open={status !== 'closed'}
+      onClose={() => setStatus('closed')}
+    >
       <Modal.Header>Login</Modal.Header>
       <Modal.Content image>
+        <Dimmer active={status === 'loading'}>
+          <Loader />
+        </Dimmer>
         <Form>
           <Form.Field>
             <Input
@@ -30,15 +54,41 @@ export default () => {
 
           <Button
             type="submit"
-            onClick={() =>
+            onClick={() => {
+              setStatus('loading');
               axios
                 .post('/login', { username, password })
-                .then((resp) => resp.data.success)
-            }
+                .then((resp) => resp.data)
+                .catch((err) => {
+                  if (err.code === 405) {
+                    return { success: false };
+                  } else {
+                    setStatus('error');
+                    throw err;
+                  }
+                })
+                .then(({ success, user }) =>
+                  setStatus(success ? 'closed' : 'bad auth'),
+                )
+                .catch((err) => console.error(err));
+            }}
           >
             Log In
           </Button>
         </Form>
+
+        {status === 'bad auth' && (
+          <Message negative>
+            <Message.Header>There was a problem logging in</Message.Header>
+            <p>Your username or password was incorrect</p>
+          </Message>
+        )}
+        {status === 'error' && (
+          <Message negative>
+            <Message.Header>There was a problem logging in</Message.Header>
+            <p>Internal server error</p>
+          </Message>
+        )}
       </Modal.Content>
     </Modal>
   );

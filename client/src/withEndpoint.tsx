@@ -6,17 +6,13 @@ import { isLeft } from 'fp-ts/lib/Either';
 
 const intervalMs = 1000;
 
-export default <CodecType extends t.Any>(
-  endpoint: string,
-  codec: CodecType,
-  Component: React.ComponentType<{ endpointData?: t.TypeOf<CodecType> }>,
+export default <DataType extends unknown>(
+  cb: () => Promise<DataType>,
+  Component: React.ComponentType<{ endpointData?: DataType }>,
 ) => {
   let backoff = intervalMs;
 
-  return class WithEndpoint extends React.Component<
-    {},
-    { data?: t.TypeOf<CodecType> }
-  > {
+  return class WithEndpoint extends React.Component<{}, { data?: DataType }> {
     state = { data: undefined };
     myIsMounted = false;
 
@@ -31,14 +27,9 @@ export default <CodecType extends t.Any>(
 
     requestUpdate = (): Promise<void> =>
       this.myIsMounted
-        ? axios
-            .get(endpoint)
-            .then((resp) => {
-              const result = codec.decode(resp.data);
-              if (isLeft(result)) {
-                throw new Error(PathReporter.report(result).join('\n'));
-              }
-              this.setState({ data: result.right });
+        ? cb()
+            .then((data) => {
+              this.setState({ data });
               backoff = intervalMs;
             })
             .catch((err) => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import axios from 'axios';
 import { v4 as uuid } from 'uuid';
-import { Link } from 'react-router-dom';
+import { Link, Redirect } from 'react-router-dom';
 import { Segment, List, Button } from 'semantic-ui-react';
 
 import { gameDefinition } from 'game-of-kings-common';
@@ -15,7 +15,7 @@ export default ({
     players: {
       id: number;
       name?: string;
-      data?: { id: string; rating: number };
+      data?: { id: string; username: string; rating: number };
     }[];
     setupData: any;
   }[];
@@ -31,15 +31,14 @@ export default ({
                 const isJoined = players.some(
                   (player) => player.data && player.data.id === user.id,
                 );
+
+                if (isJoined && players.every((p) => p.data)) {
+                  return <Redirect to={`/match/${gameID}`} />;
+                }
+
                 return (
                   <List.Item
                     key={gameID}
-                    as={Link}
-                    to={
-                      isJoined && players.length === 2
-                        ? `/match/${gameID}`
-                        : undefined
-                    }
                     onClick={
                       isJoined
                         ? undefined
@@ -48,16 +47,23 @@ export default ({
                               .post(
                                 `/games/${gameDefinition.name}/${gameID}/join`,
                                 {
-                                  playerID: 0,
-                                  playerName: 'joel',
-                                  data: {
-                                    id: 'abc',
-                                    rating: 700,
-                                  },
+                                  playerID: players.findIndex(
+                                    (p) =>
+                                      p.data === undefined ||
+                                      p.data.id === user.id,
+                                  ),
+                                  playerName: user.username,
+                                  data: user,
+                                  isJoined,
                                 },
                               )
                               .then((resp) => resp.data.playerCredentials)
-                              .then((a) => console.log(a))
+                              .then((creds) =>
+                                localStorage.setItem(
+                                  `gok-creds-${gameID}`,
+                                  creds,
+                                ),
+                              )
                     }
                   >
                     <List.Content>
@@ -84,6 +90,18 @@ export default ({
                 unlisted: false,
               })
               .then((resp) => resp.data.gameID)
+              .then((gameId) =>
+                axios
+                  .post(`/games/${gameDefinition.name}/${gameId}/join`, {
+                    playerID: 0,
+                    playerName: user.username,
+                    data: user,
+                  })
+                  .then((resp) => resp.data.playerCredentials)
+                  .then((creds) =>
+                    localStorage.setItem(`gok-creds-${gameId}`, creds),
+                  ),
+              )
           }
         >
           Create Game

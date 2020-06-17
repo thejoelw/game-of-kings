@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { hexFactory, Cell } from 'game-of-kings-common';
+import { hexFactory } from 'game-of-kings-common';
 
 const corners = hexFactory()
   .corners()
@@ -13,28 +13,48 @@ const corners = hexFactory()
 
 const boardScale = 1;
 
-export default ({
-  cell,
-  color,
-  scale,
-  onMouseDown,
-  onMouseOver,
-}: {
-  cell: Cell;
-  color: string;
-  scale: number;
-  onMouseDown?: () => void;
-  onMouseOver?: () => void;
-}) => (
-  <polygon
-    className="gok-hex"
-    points={corners}
-    fill={color}
-    stroke="black"
-    strokeWidth="0.1"
-    opacity="1"
-    transform={`translate(${cell.x} ${cell.y}) scale(${boardScale * scale})`}
-    onMouseDown={onMouseDown}
-    onMouseOver={onMouseOver}
-  />
-);
+const HexPoly = (
+  {
+    cell,
+    color,
+    scale,
+    onMouseDown,
+    onMouseUp,
+    onMouseOver,
+    onMouseOut,
+  }: {
+    cell: { x: number; y: number };
+    color: string;
+    scale: number;
+    onMouseDown?: () => void;
+    onMouseUp?: () => void;
+    onMouseOver?: () => void;
+    onMouseOut?: () => void;
+  },
+  ref: React.Ref<SVGPolygonElement>,
+) => {
+  console.log('render');
+  return (
+    <polygon
+      ref={ref}
+      className="gok-hex"
+      points={corners}
+      fill={color}
+      stroke="black"
+      strokeWidth="0.1"
+      opacity="1"
+      transform={`translate(${cell.x} ${cell.y}) scale(${boardScale * scale})`}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
+      pointerEvents={
+        onMouseDown || onMouseUp || onMouseOver || onMouseOut
+          ? 'visiblePainted'
+          : 'none'
+      }
+    />
+  );
+};
+
+export default React.forwardRef(HexPoly);

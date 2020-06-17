@@ -15,8 +15,9 @@ const corners = hexFactory()
   }));
 
 const cellScale = 1;
+const hexPx = 50;
 
-const colors = ['blue', 'red'];
+const colors = ['#4771b2', '#cf3759'];
 
 const Board = ({
   G,
@@ -59,13 +60,11 @@ const Board = ({
   credentials: string;
 }) => {
   const [selectedCellIndex, selectCellIndex] = React.useState<
-    number | undefined
+    number | 'spawn' | undefined
   >();
   const [moveDst, setMoveDst] = React.useState<number | undefined>();
 
-  // const [activeMoveType, setActiveMoveType] = React.useState<
-  //   'movePiece' | 'spawnPiece'
-  // >('movePiece');
+  const selectedPolyRef = React.useRef<SVGPolygonElement>(null);
 
   React.useEffect(() => {
     const cb = (event: MouseEvent) => {
@@ -76,30 +75,72 @@ const Board = ({
     return () => window.removeEventListener('mouseup', cb);
   }, []);
 
+  React.useEffect(() => {
+    if (moveDst !== undefined) {
+      return;
+    }
+
+    let prev: SVGTransform | undefined;
+    let added: SVGTransform | undefined;
+
+    const cb = (event: MouseEvent) => {
+      if (!selectedPolyRef.current) {
+        return;
+      }
+
+      const pt = selectedPolyRef.current.ownerSVGElement!.createSVGPoint();
+      pt.x = event.clientX;
+      pt.y = event.clientY;
+
+      const loc = pt.matrixTransform(
+        selectedPolyRef.current.ownerSVGElement!.getScreenCTM()!.inverse(),
+      );
+
+      const replaced = selectedPolyRef.current.transform.baseVal.getItem(0);
+      if (replaced !== added) {
+        console.log('set prev', replaced, added);
+        prev = replaced;
+      }
+
+      const tfm = selectedPolyRef.current.ownerSVGElement!.createSVGTransform();
+      tfm.setTranslate(loc.x, loc.y);
+      const res = selectedPolyRef.current.transform.baseVal.replaceItem(tfm, 0);
+      console.log(
+        selectedPolyRef.current.transform.baseVal.getItem(0),
+        tfm,
+        res,
+        selectedPolyRef.current.transform.baseVal.getItem(0) === tfm,
+        selectedPolyRef.current.transform.baseVal.getItem(0) === res,
+        tfm === res,
+        tfm === tfm,
+      );
+      added = tfm;
+
+      console.log('replace');
+    };
+
+    window.addEventListener('mousemove', cb);
+    return () => {
+      console.log(prev, selectedPolyRef.current);
+      if (prev && selectedPolyRef.current) {
+        selectedPolyRef.current.transform.baseVal.replaceItem(prev, 0);
+        prev = undefined;
+        console.log('revert');
+      }
+      window.removeEventListener('mousemove', cb);
+    };
+  }, [moveDst === undefined]);
+
   const validMoves = enumerateMoves(G, ctx);
 
   const size = Math.sqrt(G.cells.length) * 1.1;
 
-  console.log({
-    G,
-    ctx,
-    moves,
-    events,
-    reset,
-    undo,
-    redo,
-    log,
-    gameID,
-    playerID,
-    gameMetadata,
+  const curPlayerIndex = ctx.playOrder.indexOf(ctx.currentPlayer);
+  if (curPlayerIndex === -1) {
+    throw new Error(`Cannot find current player!`);
+  }
 
-    isActive,
-    isMultiplayer,
-    isConnected,
-    credentials,
-  });
-
-  console.log(validMoves, selectedCellIndex);
+  // console.log(G, ctx, log, isActive);
 
   return (
     <>
@@ -112,20 +153,53 @@ const Board = ({
         {G.cells.map((cell, index) => {
           const move =
             isActive &&
-            validMoves.find(
-              (m) =>
-                // m.move === activeMoveType &&
-                m.args[0] === selectedCellIndex && m.args[1] === index,
-            );
+            (selectedCellIndex === 'spawn'
+              ? validMoves.find(
+                  (m) => m.move === 'spawnPiece' && m.args[1] === index,
+                )
+              : validMoves.find(
+                  (m) =>
+                    m.move === 'movePiece' &&
+                    m.args[0] === selectedCellIndex &&
+                    m.args[1] === index,
+                ));
+
+          let onMouseUp = move
+            ? () => {
+                (moves as Record<string, (...args: any[]) => void>)[move.move](
+                  Date.now(),
+                  ...move.args,
+                );
+                events.endTurn();
+                selectCellIndex(undefined);
+              }
+            : undefined;
 
           return (
-            <HexPoly
-              cell={cell}
-              color={move ? '#E0E0E0' : '#C0C0C0'}
-              scale={1}
-              onMouseDown={undefined}
-              onMouseOver={move ? () => setMoveDst(index) : undefined}
-            />
+            <>
+              <HexPoly
+                cell={cell}
+                color={move ? '#E0E0E0' : '#C0C0C0'}
+                scale={1}
+                onMouseDown={undefined}
+                onMouseUp={onMouseUp}
+                onMouseOver={
+                  move
+                    ? () => {
+                        console.log('over');
+                        setMoveDst(index);
+                      }
+                    : undefined
+                }
+                onMouseOut={() => moveDst === index && setMoveDst(undefined)}
+              />
+
+              {/*
+              <text x={cell.x} y={cell.y} textAnchor="middle" fontSize={0.5}>
+                {index}
+              </text>
+            */}
+            </>
           );
         })}
 
@@ -138,34 +212,22 @@ const Board = ({
             isActive &&
             validMoves.find(
               (m) =>
-                // m.move === activeMoveType &&
-                m.args[0] === selectedCellIndex && m.args[1] === index,
+                m.move === 'movePiece' &&
+                m.args[0] === selectedCellIndex &&
+                m.args[1] === index,
             );
 
-          let color = chroma(colors[0]);
+          let color = chroma(colors[cell.piece.playerIndex]);
           if (cell.piece.type === 'k') {
-            color = chroma.scale([color, 'white'])(0.7);
+            color = chroma.scale([color, 'white'])(0.3);
           }
           if (move) {
             color = color.darken();
           }
 
-          let onClick = move
-            ? () => {
-                (moves as Record<string, (...args: any[]) => void>)[move.move](
-                  Date.now(),
-                  ...move.args,
-                );
-                events.endTurn();
-                selectCellIndex(undefined);
-              }
-            : () => {
-                selectCellIndex(index);
-                // setActiveMoveType('movePiece');
-              };
-
           return (
             <HexPoly
+              ref={selectedCellIndex === index ? selectedPolyRef : undefined}
               cell={
                 index === selectedCellIndex && moveDst !== undefined
                   ? G.cells[moveDst]
@@ -173,8 +235,15 @@ const Board = ({
               }
               color={color.hex()}
               scale={index === selectedCellIndex ? 0.8 : 1}
-              onMouseDown={() => selectCellIndex(index)}
+              onMouseDown={
+                selectedCellIndex === undefined &&
+                cell.piece.playerIndex === curPlayerIndex
+                  ? () => selectCellIndex(index)
+                  : undefined
+              }
+              onMouseUp={undefined}
               onMouseOver={undefined}
+              onMouseOut={undefined}
             />
           );
         })}
@@ -243,6 +312,26 @@ const Board = ({
           totalTimeMs={5 * 60 * 1000}
           attachPosition="bottom"
         />
+
+        <svg
+          viewBox="-1.1 -1.1 2.2 2.2"
+          xmlns="http://www.w3.org/2000/svg"
+          xmlnsXlink="http://www.w3.org/1999/xlink"
+          style={{ width: hexPx, height: hexPx }}
+        >
+          <HexPoly
+            cell={{ x: 0, y: 0 }}
+            color={colors[0]}
+            scale={1}
+            onMouseDown={
+              selectedCellIndex === undefined && curPlayerIndex === 0
+                ? () => selectCellIndex('spawn')
+                : undefined
+            }
+            onMouseOver={undefined}
+            onMouseUp={undefined}
+          />
+        </svg>
 
         <div style={{ flex: '1' }}></div>
         <hr

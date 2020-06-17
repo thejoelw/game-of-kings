@@ -51,7 +51,9 @@ export const gameDefinition = {
             '-1,2,-1': { playerIndex: 1, type: 'k' },
           } as { [key: string]: Piece })[`${hex.q},${hex.r},${hex.s}`],
 
-          neighborIndices: grid.neighborsOf(hex).map((n) => grid.indexOf(n)),
+          neighborIndices: grid
+            .neighborsOf(hex)
+            .map((n) => (n ? grid.indexOf(n) : -1)),
 
           q: hex.q,
           r: hex.r,

@@ -3,8 +3,10 @@ import { Ctx } from 'boardgame.io';
 import { State } from './Game';
 
 export const enumerateMoves = (G: State, ctx: Ctx) => {
-  console.log(ctx);
-  const curPlayerIndex = 0;
+  const curPlayerIndex = ctx.playOrder.indexOf(ctx.currentPlayer);
+  if (curPlayerIndex === -1) {
+    throw new Error(`Cannot find current player!`);
+  }
 
   const moves: { move: string; args: [number, number] }[] = [];
   G.cells.forEach((originCell, originIndex) => {
