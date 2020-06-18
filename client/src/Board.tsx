@@ -31,7 +31,6 @@ const Board = ({
   gameID,
   playerID,
   gameMetadata,
-
   isActive,
   isMultiplayer,
   isConnected,
@@ -43,6 +42,7 @@ const Board = ({
     movePiece: (time: number, originIndex: number, destIndex: number) => void;
     spawnPiece: (time: number, originIndex: number, destIndex: number) => void;
     offerDraw: (time: number, value: boolean) => void;
+    resign: (time: number) => void;
   };
   events: {
     endTurn: () => void;
@@ -111,7 +111,9 @@ const Board = ({
     throw new Error(`Cannot find self player!`);
   }
 
-  console.log(gameMetadata);
+  const turnBeginTime = React.useMemo(() => Date.now(), [
+    curPlayerIndex === selfPlayerIndex,
+  ]);
 
   return (
     <>
@@ -138,7 +140,7 @@ const Board = ({
           let onMouseUp = move
             ? () => {
                 (moves as Record<string, (...args: any[]) => void>)[move.move](
-                  Date.now(),
+                  Date.now() - turnBeginTime,
                   ...move.args,
                 );
                 events.endTurn();
@@ -149,38 +151,30 @@ const Board = ({
             : undefined;
 
           return (
-            <>
-              <HexPoly
-                key={index}
-                cell={cell}
-                fill={move ? '#E0E0E0' : '#C0C0C0'}
-                scale={1}
-                onMouseUp={onMouseUp}
-                onMouseOver={
-                  move
-                    ? () => {
-                        moveDstRef.current = index;
-                        selectedPolyRef.current!.classList.add('gok-hex-snap');
-                        setHexPolyTransform(
-                          selectedPolyRef.current!,
-                          G.cells[moveDstRef.current],
-                        );
-                      }
-                    : undefined
+            <HexPoly
+              key={index}
+              cell={cell}
+              fill={move ? '#E0E0E0' : '#C0C0C0'}
+              scale={1}
+              onMouseUp={onMouseUp}
+              onMouseOver={
+                move
+                  ? () => {
+                      moveDstRef.current = index;
+                      selectedPolyRef.current!.classList.add('gok-hex-snap');
+                      setHexPolyTransform(
+                        selectedPolyRef.current!,
+                        G.cells[moveDstRef.current],
+                      );
+                    }
+                  : undefined
+              }
+              onMouseOut={() => {
+                if (moveDstRef.current === index) {
+                  moveDstRef.current = undefined;
                 }
-                onMouseOut={() => {
-                  if (moveDstRef.current === index) {
-                    moveDstRef.current = undefined;
-                  }
-                }}
-              />
-
-              {/*
-              <text x={cell.x} y={cell.y} textAnchor="middle" fontSize={0.5}>
-                {index}
-              </text>
-            */}
-            </>
+              }}
+            />
           );
         })}
 
@@ -201,7 +195,7 @@ const Board = ({
 
             let color = chroma(colors[cell.piece.playerIndex]);
             if (cell.piece.type === 'k') {
-              color = chroma.scale([color, 'white'])(0.3);
+              color = chroma.scale([color, 'white'])(0.5);
             }
             if (move) {
               color = color.darken();
@@ -305,11 +299,26 @@ const Board = ({
           )} 0%, #EEEEEE 50%)`,
         }}
       >
-        <CountdownTimer
-          endTime={Date.now() + G.players[0].timeLeftMs}
-          totalTimeMs={5 * 60 * 1000}
-          attachPosition="bottom"
-        />
+        {curPlayerIndex === 0 ? (
+          <CountdownTimer
+            endTime={turnBeginTime + G.players[0].timeLeftMs}
+            totalTimeMs={5 * 60 * 1000}
+            attachPosition="bottom"
+            onEnd={() => {
+              moves.resign(Date.now() - turnBeginTime);
+              events.endTurn();
+
+              moveDstRef.current = undefined;
+              selectCellIndex(undefined);
+            }}
+          />
+        ) : (
+          <PausedTimer
+            remainingTimeMs={G.players[0].timeLeftMs}
+            totalTimeMs={5 * 60 * 1000}
+            attachPosition="bottom"
+          />
+        )}
 
         <div
           style={{
@@ -429,143 +438,29 @@ const Board = ({
           </span>
         </div>
 
-        <CountdownTimer
-          endTime={Date.now() + G.players[1].timeLeftMs}
-          totalTimeMs={5 * 60 * 1000}
-          attachPosition="top"
-        />
+        {curPlayerIndex === 1 ? (
+          <CountdownTimer
+            endTime={turnBeginTime + G.players[1].timeLeftMs}
+            totalTimeMs={5 * 60 * 1000}
+            attachPosition="top"
+            onEnd={() => {
+              moves.resign(Date.now() - turnBeginTime);
+              events.endTurn();
+
+              moveDstRef.current = undefined;
+              selectCellIndex(undefined);
+            }}
+          />
+        ) : (
+          <PausedTimer
+            remainingTimeMs={G.players[1].timeLeftMs}
+            totalTimeMs={5 * 60 * 1000}
+            attachPosition="top"
+          />
+        )}
       </div>
     </>
   );
-
-  /*
-
-    return (
-      <HexGrid width={600} height={600} viewBox="-50 -50 100 100">
-        <Layout
-          size={{ x: 5, y: 5 }}
-          flat={false}
-          spacing={1.1}
-          origin={{ x: 0, y: 0 }}
-        >
-          {this.props.G.cells.map((piece, cellIndex) => {
-            const ggCell = gameGlobals.cells[cellIndex];
-
-            const move =
-              this.props.isActive &&
-              moves.find(
-                (m) =>
-                  m.move === this.state.activeMoveType &&
-                  m.args[0] === this.state.selectedCellIndex &&
-                  m.args[1] === cellIndex,
-              );
-
-            let color = chroma(
-              piece ? gameGlobals.players[piece.playerIndex].color : 'silver',
-            );
-            if (piece && piece.type === 'k') {
-              color = chroma.scale([color, 'white'])(0.7);
-            }
-            if (move) {
-              color = color.darken();
-            }
-
-            let onClick = move
-              ? this.doMove(move)
-              : piece
-              ? this.selectPiece(cellIndex)
-              : null;
-
-            return (
-              <g fill={color.hex()}>
-                <Hexagon
-                  key={`${ggCell.q},${ggCell.r},${ggCell.s}`}
-                  q={ggCell.q}
-                  r={ggCell.r}
-                  s={ggCell.s}
-                  onClick={onClick}
-                >
-                  {piece && piece.spawnsAvailable > 0 ? (
-                    <g onClick={this.toggleMoveType(cellIndex)}>
-                      <circle
-                        cx={2}
-                        cy={-2}
-                        r={2}
-                        fill={
-                          this.state.selectedCellIndex === cellIndex &&
-                          this.state.activeMoveType === 'spawnPiece'
-                            ? 'green'
-                            : 'white'
-                        }
-                        stroke={
-                          this.state.selectedCellIndex === cellIndex &&
-                          this.state.activeMoveType === 'spawnPiece'
-                            ? 'green'
-                            : 'green'
-                        }
-                        strokeWidth={0.2}
-                      />
-                      <text
-                        x={2}
-                        y={-1.3}
-                        textAnchor="middle"
-                        fontSize={2}
-                        fill={
-                          this.state.selectedCellIndex === cellIndex &&
-                          this.state.activeMoveType === 'spawnPiece'
-                            ? 'white'
-                            : 'green'
-                        }
-                      >
-                        {`+${piece.spawnsAvailable}`}
-                      </text>
-                    </g>
-                  ) : null}
-                </Hexagon>
-              </g>
-            );
-          })}
-        </Layout>
-      </HexGrid>
-    );
-    */
 };
 
 export default Board;
-
-/*
-class Board extends React.Component {
-  state = {
-    activeMoveType: 'movePiece',
-  };
-
-  doMove = (move) => (e) => {
-    this.props.moves[move.move](Date.now(), ...move.args);
-    this.props.events.endTurn();
-    this.setState({
-      selectedCellIndex: undefined,
-    });
-  };
-
-  selectPiece = (cellIndex) => (e) => {
-    this.setState({
-      selectedCellIndex: cellIndex,
-      activeMoveType: 'movePiece',
-    });
-  };
-
-  toggleMoveType = (cellIndex) => (e) => {
-    this.setState((state) => ({
-      selectedCellIndex: cellIndex,
-      activeMoveType: { movePiece: 'spawnPiece', spawnPiece: 'movePiece' }[
-        state.activeMoveType
-      ],
-    }));
-
-    e.stopPropagation();
-  };
-
-  render() {
-  }
-}
-*/

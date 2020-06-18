@@ -27,7 +27,7 @@ export const Timer = ({
 
   // setTimeout(onUpdate, 500 - remaining);
   React.useEffect(() => {
-    const timer = setTimeout(onUpdate, 1000);
+    const timer = setTimeout(onUpdate, 100);
     return () => clearTimeout(timer);
   });
 
@@ -56,21 +56,41 @@ export const CountdownTimer = ({
   endTime,
   totalTimeMs,
   attachPosition,
+  onEnd,
 }: {
   endTime: number;
   totalTimeMs: number;
   attachPosition: 'top' | 'bottom';
+  onEnd: () => void;
 }) => {
   const [lastRenderTime, setLastRenderTime] = React.useState(Date.now());
-  return (
-    <Timer
-      remainingTimeMs={endTime - lastRenderTime}
-      totalTimeMs={totalTimeMs}
-      onUpdate={() => setLastRenderTime(Date.now())}
-      active={true}
-      attachPosition={attachPosition}
-    />
-  );
+
+  const ended = lastRenderTime > endTime;
+  React.useEffect(() => {
+    ended && onEnd();
+  }, [ended]);
+
+  if (ended) {
+    return (
+      <Timer
+        remainingTimeMs={0}
+        totalTimeMs={totalTimeMs}
+        onUpdate={() => {}}
+        active={true}
+        attachPosition={attachPosition}
+      />
+    );
+  } else {
+    return (
+      <Timer
+        remainingTimeMs={endTime - lastRenderTime}
+        totalTimeMs={totalTimeMs}
+        onUpdate={() => setLastRenderTime(Date.now())}
+        active={true}
+        attachPosition={attachPosition}
+      />
+    );
+  }
 };
 
 export const PausedTimer = ({

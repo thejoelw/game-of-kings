@@ -77,7 +77,7 @@ export const gameDefinition = {
     movePiece: (
       G: State,
       ctx: Ctx,
-      time: number,
+      turnDurationMs: number,
       originIndex: number,
       destIndex: number,
     ) => {
@@ -87,6 +87,8 @@ export const gameDefinition = {
       if (!originCell.piece) {
         throw new Error(`Cannot move from a cell without a piece!`);
       }
+
+      G.players[originCell.piece.playerIndex].timeLeftMs -= turnDurationMs;
 
       if (destCell.piece) {
         if (originCell.piece.type === 'k') {
@@ -104,7 +106,7 @@ export const gameDefinition = {
     spawnPiece: (
       G: State,
       ctx: Ctx,
-      time: number,
+      turnDurationMs: number,
       originIndex: number,
       destIndex: number,
     ) => {
@@ -118,6 +120,8 @@ export const gameDefinition = {
         throw new Error(`Cannot spawn from a non-king piece!`);
       }
 
+      G.players[originCell.piece.playerIndex].timeLeftMs -= turnDurationMs;
+
       destCell.piece = {
         playerIndex: originCell.piece.playerIndex,
         type: 'p',
@@ -125,8 +129,16 @@ export const gameDefinition = {
       G.players[originCell.piece.playerIndex].spawnsAvailable--;
     },
 
-    offerDraw(G: State, ctx: Ctx, time: number, value: boolean) {
+    offerDraw(G: State, ctx: Ctx, turnDurationMs: number, value: boolean) {
       G.drawOffered[ctx.currentPlayer] = value ? true : undefined;
+    },
+
+    resign(G: State, ctx: Ctx, turnDurationMs: number) {
+      G.result = {
+        winner: ({ '0': '1', '1': '0' } as Record<string, string>)[
+          ctx.currentPlayer
+        ],
+      };
     },
   },
 
