@@ -26,7 +26,10 @@ export const Timer = ({
   remaining -= flicker * 500;
 
   // setTimeout(onUpdate, 500 - remaining);
-  setTimeout(onUpdate, 100);
+  React.useEffect(() => {
+    const timer = setTimeout(onUpdate, 1000);
+    return () => clearTimeout(timer);
+  });
 
   return (
     <Segment

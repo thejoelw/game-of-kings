@@ -16,45 +16,37 @@ const boardScale = 1;
 const HexPoly = (
   {
     cell,
-    color,
     scale,
-    onMouseDown,
-    onMouseUp,
-    onMouseOver,
-    onMouseOut,
+    ...extraProps
   }: {
     cell: { x: number; y: number };
-    color: string;
     scale: number;
-    onMouseDown?: () => void;
-    onMouseUp?: () => void;
-    onMouseOver?: () => void;
-    onMouseOut?: () => void;
-  },
+  } & React.SVGProps<SVGPolygonElement>,
   ref: React.Ref<SVGPolygonElement>,
+) => (
+  <polygon
+    ref={ref}
+    points={corners}
+    stroke="black"
+    strokeWidth="0.1"
+    opacity="1"
+    transform={`translate(${cell.x} ${cell.y}) scale(${boardScale * scale})`}
+    pointerEvents={
+      Object.entries(extraProps).some(([k, v]) => k.startsWith('onMouse') && v)
+        ? 'visiblePainted'
+        : 'none'
+    }
+    {...extraProps}
+  />
+);
+
+export const setHexPolyTransform = (
+  hp: SVGPolygonElement,
+  cell: { x: number; y: number },
 ) => {
-  console.log('render');
-  return (
-    <polygon
-      ref={ref}
-      className="gok-hex"
-      points={corners}
-      fill={color}
-      stroke="black"
-      strokeWidth="0.1"
-      opacity="1"
-      transform={`translate(${cell.x} ${cell.y}) scale(${boardScale * scale})`}
-      onMouseDown={onMouseDown}
-      onMouseUp={onMouseUp}
-      onMouseOver={onMouseOver}
-      onMouseOut={onMouseOut}
-      pointerEvents={
-        onMouseDown || onMouseUp || onMouseOver || onMouseOut
-          ? 'visiblePainted'
-          : 'none'
-      }
-    />
-  );
+  const tfm = hp.ownerSVGElement!.createSVGTransform();
+  tfm.setTranslate(cell.x, cell.y);
+  hp.transform.baseVal.replaceItem(tfm, 0);
 };
 
 export default React.forwardRef(HexPoly);

@@ -21,8 +21,8 @@ body,
 	overflow: hidden;
 }
 
-polygon.gok-hex {
-	/*transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);*/
+polygon.gok-hex-snap {
+	transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 code {

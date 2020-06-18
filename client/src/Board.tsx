@@ -4,8 +4,9 @@ import chroma from 'chroma-js';
 
 import { State, hexFactory, enumerateMoves } from 'game-of-kings-common';
 
+import { User } from './codecs';
 import { CountdownTimer, PausedTimer } from './Timer';
-import HexPoly from './HexPoly';
+import HexPoly, { setHexPolyTransform } from './HexPoly';
 
 const corners = hexFactory()
   .corners()
@@ -15,7 +16,6 @@ const corners = hexFactory()
   }));
 
 const cellScale = 1;
-const hexPx = 50;
 
 const colors = ['#4771b2', '#cf3759'];
 
@@ -53,7 +53,7 @@ const Board = ({
   log: any[];
   gameID: string;
   playerID: string;
-  gameMetadata: {}[];
+  gameMetadata: { data: User }[];
   isActive: boolean;
   isMultiplayer: boolean;
   isConnected: boolean;
@@ -62,29 +62,22 @@ const Board = ({
   const [selectedCellIndex, selectCellIndex] = React.useState<
     number | 'spawn' | undefined
   >();
-  const [moveDst, setMoveDst] = React.useState<number | undefined>();
+  const moveDstRef = React.useRef<number>();
 
   const selectedPolyRef = React.useRef<SVGPolygonElement>(null);
 
   React.useEffect(() => {
     const cb = (event: MouseEvent) => {
+      moveDstRef.current = undefined;
       selectCellIndex(undefined);
-      setMoveDst(undefined);
     };
     window.addEventListener('mouseup', cb);
     return () => window.removeEventListener('mouseup', cb);
   }, []);
 
   React.useEffect(() => {
-    if (moveDst !== undefined) {
-      return;
-    }
-
-    let prev: SVGTransform | undefined;
-    let added: SVGTransform | undefined;
-
     const cb = (event: MouseEvent) => {
-      if (!selectedPolyRef.current) {
+      if (!selectedPolyRef.current || moveDstRef.current !== undefined) {
         return;
       }
 
@@ -96,40 +89,13 @@ const Board = ({
         selectedPolyRef.current.ownerSVGElement!.getScreenCTM()!.inverse(),
       );
 
-      const replaced = selectedPolyRef.current.transform.baseVal.getItem(0);
-      if (replaced !== added) {
-        console.log('set prev', replaced, added);
-        prev = replaced;
-      }
-
-      const tfm = selectedPolyRef.current.ownerSVGElement!.createSVGTransform();
-      tfm.setTranslate(loc.x, loc.y);
-      const res = selectedPolyRef.current.transform.baseVal.replaceItem(tfm, 0);
-      console.log(
-        selectedPolyRef.current.transform.baseVal.getItem(0),
-        tfm,
-        res,
-        selectedPolyRef.current.transform.baseVal.getItem(0) === tfm,
-        selectedPolyRef.current.transform.baseVal.getItem(0) === res,
-        tfm === res,
-        tfm === tfm,
-      );
-      added = tfm;
-
-      console.log('replace');
+      selectedPolyRef.current!.classList.remove('gok-hex-snap');
+      setHexPolyTransform(selectedPolyRef.current, loc);
     };
 
     window.addEventListener('mousemove', cb);
-    return () => {
-      console.log(prev, selectedPolyRef.current);
-      if (prev && selectedPolyRef.current) {
-        selectedPolyRef.current.transform.baseVal.replaceItem(prev, 0);
-        prev = undefined;
-        console.log('revert');
-      }
-      window.removeEventListener('mousemove', cb);
-    };
-  }, [moveDst === undefined]);
+    return () => window.removeEventListener('mousemove', cb);
+  }, []);
 
   const validMoves = enumerateMoves(G, ctx);
 
@@ -140,7 +106,12 @@ const Board = ({
     throw new Error(`Cannot find current player!`);
   }
 
-  // console.log(G, ctx, log, isActive);
+  const selfPlayerIndex = ctx.playOrder.indexOf(playerID);
+  if (selfPlayerIndex === -1) {
+    throw new Error(`Cannot find self player!`);
+  }
+
+  console.log(gameMetadata);
 
   return (
     <>
@@ -148,7 +119,7 @@ const Board = ({
         viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}
         xmlns="http://www.w3.org/2000/svg"
         xmlnsXlink="http://www.w3.org/1999/xlink"
-        style={{ flex: '1' }}
+        style={{ flex: '1', overflow: 'visible', zIndex: 10 }}
       >
         {G.cells.map((cell, index) => {
           const move =
@@ -171,6 +142,8 @@ const Board = ({
                   ...move.args,
                 );
                 events.endTurn();
+
+                moveDstRef.current = undefined;
                 selectCellIndex(undefined);
               }
             : undefined;
@@ -178,20 +151,28 @@ const Board = ({
           return (
             <>
               <HexPoly
+                key={index}
                 cell={cell}
-                color={move ? '#E0E0E0' : '#C0C0C0'}
+                fill={move ? '#E0E0E0' : '#C0C0C0'}
                 scale={1}
-                onMouseDown={undefined}
                 onMouseUp={onMouseUp}
                 onMouseOver={
                   move
                     ? () => {
-                        console.log('over');
-                        setMoveDst(index);
+                        moveDstRef.current = index;
+                        selectedPolyRef.current!.classList.add('gok-hex-snap');
+                        setHexPolyTransform(
+                          selectedPolyRef.current!,
+                          G.cells[moveDstRef.current],
+                        );
                       }
                     : undefined
                 }
-                onMouseOut={() => moveDst === index && setMoveDst(undefined)}
+                onMouseOut={() => {
+                  if (moveDstRef.current === index) {
+                    moveDstRef.current = undefined;
+                  }
+                }}
               />
 
               {/*
@@ -203,50 +184,75 @@ const Board = ({
           );
         })}
 
-        {G.cells.map((cell, index) => {
-          if (!cell.piece) {
-            return;
-          }
+        {G.cells
+          .flatMap((cell, index) => {
+            if (!cell.piece) {
+              return [];
+            }
 
-          const move =
-            isActive &&
-            validMoves.find(
-              (m) =>
-                m.move === 'movePiece' &&
-                m.args[0] === selectedCellIndex &&
-                m.args[1] === index,
-            );
+            const move =
+              isActive &&
+              validMoves.find(
+                (m) =>
+                  m.move === 'movePiece' &&
+                  m.args[0] === selectedCellIndex &&
+                  m.args[1] === index,
+              );
 
-          let color = chroma(colors[cell.piece.playerIndex]);
-          if (cell.piece.type === 'k') {
-            color = chroma.scale([color, 'white'])(0.3);
-          }
-          if (move) {
-            color = color.darken();
-          }
+            let color = chroma(colors[cell.piece.playerIndex]);
+            if (cell.piece.type === 'k') {
+              color = chroma.scale([color, 'white'])(0.3);
+            }
+            if (move) {
+              color = color.darken();
+            }
 
-          return (
-            <HexPoly
-              ref={selectedCellIndex === index ? selectedPolyRef : undefined}
-              cell={
-                index === selectedCellIndex && moveDst !== undefined
-                  ? G.cells[moveDst]
-                  : cell
-              }
-              color={color.hex()}
-              scale={index === selectedCellIndex ? 0.8 : 1}
-              onMouseDown={
-                selectedCellIndex === undefined &&
-                cell.piece.playerIndex === curPlayerIndex
-                  ? () => selectCellIndex(index)
-                  : undefined
-              }
-              onMouseUp={undefined}
-              onMouseOver={undefined}
-              onMouseOut={undefined}
-            />
-          );
-        })}
+            return {
+              zIndex: index === selectedCellIndex ? 2 : 1,
+              el: (
+                <HexPoly
+                  key={index}
+                  ref={
+                    selectedCellIndex === index ? selectedPolyRef : undefined
+                  }
+                  cell={
+                    index === selectedCellIndex &&
+                    moveDstRef.current !== undefined
+                      ? G.cells[moveDstRef.current]
+                      : cell
+                  }
+                  fill={color.hex()}
+                  scale={index === selectedCellIndex ? 0.8 : 1}
+                  onMouseDown={
+                    selectedCellIndex === undefined &&
+                    curPlayerIndex === selfPlayerIndex &&
+                    cell.piece.playerIndex === selfPlayerIndex
+                      ? (e) => {
+                          e.preventDefault();
+                          selectCellIndex(index);
+                        }
+                      : undefined
+                  }
+                  style={
+                    cell.piece.playerIndex === selfPlayerIndex
+                      ? { cursor: 'grab' }
+                      : undefined
+                  }
+                />
+              ),
+            };
+          })
+          .sort((a, b) => a.zIndex - b.zIndex)
+          .map((a) => a.el)}
+
+        {selectedCellIndex === 'spawn' && (
+          <HexPoly
+            ref={selectedPolyRef}
+            cell={{ x: -10000, y: -10000 }}
+            fill={colors[selfPlayerIndex]}
+            scale={0.8}
+          />
+        )}
 
         {/*G.cells.map((hex, index) => {
           const zeros =
@@ -287,61 +293,141 @@ const Board = ({
       <div
         style={{
           width: '250px',
-          backgroundColor: '#eeeeee',
           boxShadow: '0 0 8px 0 gray',
           zIndex: 2,
           padding: '8px',
           display: 'flex',
           flexDirection: 'column',
+          background: `linear-gradient(${
+            curPlayerIndex ? 'to top' : 'to bottom'
+          }, ${chroma.scale([colors[curPlayerIndex], '#EEEEEE'])(
+            0.5,
+          )} 0%, #EEEEEE 50%)`,
         }}
       >
-        {`
-        game type
-
-        foreach player:
-          name
-          rating
-          timer
-
-        move history
-        resign
-        `}
-
         <CountdownTimer
           endTime={Date.now() + G.players[0].timeLeftMs}
           totalTimeMs={5 * 60 * 1000}
           attachPosition="bottom"
         />
 
-        <svg
-          viewBox="-1.1 -1.1 2.2 2.2"
-          xmlns="http://www.w3.org/2000/svg"
-          xmlnsXlink="http://www.w3.org/1999/xlink"
-          style={{ width: hexPx, height: hexPx }}
-        >
-          <HexPoly
-            cell={{ x: 0, y: 0 }}
-            color={colors[0]}
-            scale={1}
-            onMouseDown={
-              selectedCellIndex === undefined && curPlayerIndex === 0
-                ? () => selectCellIndex('spawn')
-                : undefined
-            }
-            onMouseOver={undefined}
-            onMouseUp={undefined}
-          />
-        </svg>
-
-        <div style={{ flex: '1' }}></div>
-        <hr
+        <div
           style={{
-            // boxShadow: 'silver 0px 0px 2px 1px',
-            border: '0.5px solid silver',
-            margin: '16px 8px',
+            flex: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-        />
-        <div style={{ flex: '1' }}></div>
+        >
+          <svg
+            viewBox="-1.1 -1.1 2.2 2.2"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlnsXlink="http://www.w3.org/1999/xlink"
+            style={{
+              width: 50,
+              height: 50,
+            }}
+          >
+            <HexPoly
+              cell={{ x: 0, y: 0 }}
+              fill={colors[0]}
+              scale={1}
+              onMouseDown={
+                selectedCellIndex === undefined &&
+                curPlayerIndex === 0 &&
+                selfPlayerIndex === 0 &&
+                G.players[0].spawnsAvailable > 0
+                  ? (e) => {
+                      e.preventDefault();
+                      selectCellIndex('spawn');
+                    }
+                  : undefined
+              }
+              style={
+                selfPlayerIndex === 0 && G.players[0].spawnsAvailable > 0
+                  ? { cursor: 'grab' }
+                  : {}
+              }
+            />
+          </svg>
+          <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
+            x{G.players[0].spawnsAvailable}
+          </span>
+        </div>
+
+        <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+          {gameMetadata[0].data.username} ({gameMetadata[0].data.rating})
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <hr
+            style={{
+              flex: '1',
+              border: 'none',
+              backgroundColor: 'silver',
+              height: '1px',
+              margin: '16px 8px',
+            }}
+          />
+          <span style={{ color: 'silver' }}>VS</span>
+          <hr
+            style={{
+              flex: '1',
+              border: 'none',
+              backgroundColor: 'silver',
+              height: '1px',
+              margin: '16px 8px',
+            }}
+          />
+        </div>
+
+        <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+          {gameMetadata[1].data.username} ({gameMetadata[1].data.rating})
+        </div>
+
+        <div
+          style={{
+            flex: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg
+            viewBox="-1.1 -1.1 2.2 2.2"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlnsXlink="http://www.w3.org/1999/xlink"
+            style={{
+              width: 50,
+              height: 50,
+            }}
+          >
+            <HexPoly
+              cell={{ x: 0, y: 0 }}
+              fill={colors[1]}
+              scale={1}
+              onMouseDown={
+                selectedCellIndex === undefined &&
+                curPlayerIndex === 1 &&
+                selfPlayerIndex === 1 &&
+                G.players[1].spawnsAvailable > 0
+                  ? (e) => {
+                      e.preventDefault();
+                      selectCellIndex('spawn');
+                    }
+                  : undefined
+              }
+              style={
+                selfPlayerIndex === 1 && G.players[1].spawnsAvailable > 0
+                  ? { cursor: 'grab' }
+                  : {}
+              }
+            />
+          </svg>
+          <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
+            x{G.players[1].spawnsAvailable}
+          </span>
+        </div>
 
         <CountdownTimer
           endTime={Date.now() + G.players[1].timeLeftMs}

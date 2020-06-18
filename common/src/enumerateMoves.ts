@@ -32,6 +32,7 @@ export const enumerateMoves = (G: State, ctx: Ctx) => {
 
         if (
           isKing &&
+          !destCell.piece &&
           G.players[originCell.piece!.playerIndex].spawnsAvailable > 0
         ) {
           moves.push({
