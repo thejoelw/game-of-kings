@@ -6,11 +6,12 @@ const opt = <InnerType extends t.Any>(type: InnerType) =>
 export const SubMsgCodec = t.string;
 export const UnsubMsgCodec = t.string;
 
+export const AuthCodec = t.type({ token: t.string });
+
 export const UserCodec = t.type({
 	username: t.string,
 	rating: t.number,
 });
-export type User = t.TypeOf<typeof UserCodec>;
 
 export const VariantCodec = t.type({
 	radius: t.number,
@@ -59,9 +60,11 @@ export const MatchCodec = t.type({
 	players: t.array(
 		t.type({
 			id: t.string,
-			timeLeft: t.number,
+			spawnsAvailable: t.number,
+			timeForMove: t.number,
 		}),
 	),
+	playerToMove: t.number,
 	cells: t.array(opt(PieceCodec)),
 	status: t.keyof({
 		aborted: null,
@@ -71,38 +74,3 @@ export const MatchCodec = t.type({
 	}),
 	winner: opt(t.number),
 });
-
-/*
-export const LobbyResponseCodec = t.type({
-	rooms: t.array(
-		t.type({
-			gameID: t.string,
-			setupData: t.type({}),
-			players: t.array(
-				t.type({
-					id: t.number,
-					name: opt(t.string),
-					data: opt(UserCodec),
-				}),
-			),
-		}),
-	),
-});
-
-export const LoginResponseCodec = t.type({
-	success: t.boolean,
-	user: opt(UserCodec),
-});
-
-export const GameResponseCodec = t.type({
-	roomID: t.string,
-	setupData: t.type({}),
-	players: t.array(
-		t.type({
-			id: t.number,
-			name: opt(t.string),
-			data: opt(UserCodec),
-		}),
-	),
-});
-*/

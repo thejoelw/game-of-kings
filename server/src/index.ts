@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 
 import { LobbyModule, UserModule, MatchModule } from 'game-of-kings-common';
 
+import './auth';
 import { createModuleInstance } from './modules';
 import { io } from './io';
 
@@ -9,7 +10,8 @@ import { io } from './io';
 	const lobby = await createModuleInstance('lobby', LobbyModule);
 
 	io.on('connection', async (socket) => {
-		const userId = socket.request._query['userId'];
+		const userId = socket.handshake.query['userId'];
+
 		const user = await createModuleInstance(`user-${userId}`, UserModule);
 
 		socket.on('user-rename', (data: any) =>

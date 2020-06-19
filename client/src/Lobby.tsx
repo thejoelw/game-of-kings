@@ -2,7 +2,6 @@ import React from 'react';
 
 import { LobbyModule } from 'game-of-kings-common';
 
-import Client from './Client';
 import MatchList from './MatchList';
 import { useModule } from './socket';
 

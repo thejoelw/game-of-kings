@@ -21,7 +21,7 @@ export default ({
     <Segment>
       <List>
         {challenges.map(
-          ({ id, challengerId, opponentId, variantData, matchId }) => {
+          ({ id, challengerId, opponentId, variant, matchId }) => {
             const isMine = challengerId === userId;
 
             if ((challengerId === userId || opponentId === userId) && matchId) {
