@@ -1,12 +1,14 @@
 import React from 'react';
 
+import { LobbyModule } from 'game-of-kings-common';
+
 import Client from './Client';
 import MatchList from './MatchList';
-import withEndpoint from './withEndpoint';
-import { getLobby, LobbyResponseType } from './requests';
+import { useModule } from './socket';
 
-const Lobby = ({ endpointData }: { endpointData?: LobbyResponseType }) => {
-  return <MatchList rooms={endpointData && endpointData.rooms} />;
+const Lobby = () => {
+  const { users, challenges } = useModule('lobby', LobbyModule);
+  return <MatchList users={users} challenges={challenges} />;
 };
 
-export default withEndpoint(getLobby, Lobby);
+export default Lobby;

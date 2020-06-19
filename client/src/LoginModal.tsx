@@ -10,8 +10,6 @@ import {
   Message,
 } from 'semantic-ui-react';
 
-import { setUser } from './user';
-
 export default () => {
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');

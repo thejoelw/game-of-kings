@@ -2,6 +2,10 @@ import React from 'react';
 
 import LoginModal from './LoginModal';
 import RegisterModal from './RegisterModal';
+import RenameModal from './RenameModal';
+
+import { userId } from './user';
+import UserBadge from './UserBadge';
 
 export default () => (
   <div
@@ -25,8 +29,13 @@ export default () => (
       gameofkings.io
     </h1>
     <div style={{ flex: '1' }}></div>
+    {/*
     <LoginModal />
     <div style={{ padding: '0.5em' }}>|</div>
     <RegisterModal />
+    */}
+    <UserBadge userId={userId} />
+    <div style={{ padding: '0.5em' }}>|</div>
+    <RenameModal />
   </div>
 );

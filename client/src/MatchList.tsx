@@ -4,109 +4,66 @@ import { v4 as uuid } from 'uuid';
 import { Link, Redirect } from 'react-router-dom';
 import { Segment, List, Button } from 'semantic-ui-react';
 
-import { gameDefinition } from 'game-of-kings-common';
-import { useUser } from './user';
+import { LobbyState } from 'game-of-kings-common';
+
+import { userId } from './user';
+import { send } from './socket';
+import UserBadge from './UserBadge';
 
 export default ({
-  rooms,
+  challenges,
+  users,
 }: {
-  rooms?: {
-    gameID: string;
-    players: {
-      id: number;
-      name?: string;
-      data?: { id: string; username: string; rating: number };
-    }[];
-    setupData: any;
-  }[];
-}) => {
-  const user = useUser();
+  challenges: LobbyState['challenges'];
+  users: LobbyState['users'];
+}) => (
+  <>
+    <Segment>
+      <List>
+        {challenges.map(
+          ({ id, challengerId, opponentId, variantData, matchId }) => {
+            const isMine = challengerId === userId;
 
-  return (
-    <>
-      <Segment>
-        <List>
-          {rooms
-            ? rooms.map(({ gameID, players }) => {
-                const isJoined = players.some(
-                  (player) => player.data && player.data.id === user.id,
-                );
+            if ((challengerId === userId || opponentId === userId) && matchId) {
+              return <Redirect to={`/match/${matchId}`} />;
+            }
 
-                if (isJoined && players.every((p) => p.data)) {
-                  return <Redirect to={`/match/${gameID}`} />;
+            return (
+              <List.Item
+                key={id}
+                onClick={
+                  isMine
+                    ? () => send('lobby-retract-challenge', id)
+                    : () =>
+                        send('lobby-accept-challenge', {
+                          challengeId: id,
+                          acceptorId: userId,
+                        })
                 }
+              >
+                <List.Content>
+                  <List.Header>Join Match</List.Header>
+                  <List.Description>
+                    <UserBadge userId={challengerId} />
+                  </List.Description>
+                </List.Content>
+              </List.Item>
+            );
+          },
+        )}
+      </List>
 
-                return (
-                  <List.Item
-                    key={gameID}
-                    onClick={
-                      isJoined
-                        ? undefined
-                        : () =>
-                            axios
-                              .post(
-                                `/games/${gameDefinition.name}/${gameID}/join`,
-                                {
-                                  playerID: players.findIndex(
-                                    (p) =>
-                                      p.data === undefined ||
-                                      p.data.id === user.id,
-                                  ),
-                                  playerName: user.username,
-                                  data: user,
-                                  isJoined,
-                                },
-                              )
-                              .then((resp) => resp.data.playerCredentials)
-                              .then((creds) =>
-                                localStorage.setItem(
-                                  `gok-creds-${gameID}`,
-                                  creds,
-                                ),
-                              )
-                    }
-                  >
-                    <List.Content>
-                      <List.Header>Join Match</List.Header>
-                      <List.Description>
-                        {players
-                          .filter((p) => p.name && p.data)
-                          .map((p) => `${p.name} (${p.data!.rating})`)
-                          .join(', ')}
-                      </List.Description>
-                    </List.Content>
-                  </List.Item>
-                );
-              })
-            : 'loading...'}
-        </List>
-
-        <Button
-          onClick={() =>
-            axios
-              .post(`/games/${gameDefinition.name}/create`, {
-                numPlayers: 2,
-                setupData: {},
-                unlisted: false,
-              })
-              .then((resp) => resp.data.gameID)
-              .then((gameId) =>
-                axios
-                  .post(`/games/${gameDefinition.name}/${gameId}/join`, {
-                    playerID: 0,
-                    playerName: user.username,
-                    data: user,
-                  })
-                  .then((resp) => resp.data.playerCredentials)
-                  .then((creds) =>
-                    localStorage.setItem(`gok-creds-${gameId}`, creds),
-                  ),
-              )
-          }
-        >
-          Create Game
-        </Button>
-      </Segment>
-    </>
-  );
-};
+      <Button
+        onClick={() =>
+          send('lobby-extend-challenge', {
+            id: uuid(),
+            challengerId: userId,
+            variant: { radius: 5, spawnsAvailable: 12 },
+          })
+        }
+      >
+        Create Game
+      </Button>
+    </Segment>
+  </>
+);
