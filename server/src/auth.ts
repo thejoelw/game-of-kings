@@ -8,11 +8,13 @@ io.on('connection', (socket) => {
 	const userId = socket.handshake.query['userId'];
 	let authed = false;
 
-	socket.use((packet, next) =>
-		next(
-			authed || packet[0] === 'auth' ? packet : new Error('Not authenticated'),
-		),
-	);
+	socket.use((packet, next) => {
+		if (authed || packet[0] === 'auth') {
+			next();
+		} else {
+			next(new Error('Not authenticated'));
+		}
+	});
 
 	const authDecoder = makeDecoder(AuthCodec);
 	socket.on('auth', (data: any) => {

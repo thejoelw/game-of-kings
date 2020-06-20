@@ -1,7 +1,6 @@
-import * as t from 'io-ts';
 import * as Honeycomb from 'honeycomb-grid';
 
-import { VariantCodec } from '.';
+import { Variant } from '.';
 
 export interface Cell {
 	neighborIndices: number[];
@@ -21,7 +20,6 @@ export const hexFactory = Honeycomb.extendHex({
 	orientation: 'pointy', // 'flat' or 'pointy'
 });
 
-type Variant = t.TypeOf<typeof VariantCodec>;
 export const makeBoard = (variant: Variant): Board => {
 	const cells = Honeycomb.defineGrid(hexFactory)
 		.hexagon({

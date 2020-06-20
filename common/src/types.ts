@@ -7,7 +7,7 @@ import {
 	UserCodec,
 	VariantCodec,
 	ChallengeCodec,
-	LobbyInitCodec,
+	LobbyStateCodec,
 	AcceptChallengeCodec,
 	PieceCodec,
 	MoveCodec,
@@ -20,7 +20,7 @@ export type Auth = t.TypeOf<typeof AuthCodec>;
 export type User = t.TypeOf<typeof UserCodec>;
 export type Variant = t.TypeOf<typeof VariantCodec>;
 export type Challenge = t.TypeOf<typeof ChallengeCodec>;
-export type LobbyInit = t.TypeOf<typeof LobbyInitCodec>;
+export type LobbyState = t.TypeOf<typeof LobbyStateCodec>;
 export type AcceptChallenge = t.TypeOf<typeof AcceptChallengeCodec>;
 export type Piece = t.TypeOf<typeof PieceCodec>;
 export type Move = t.TypeOf<typeof MoveCodec>;

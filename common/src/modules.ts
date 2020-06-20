@@ -2,11 +2,16 @@ import * as t from 'io-ts';
 
 import {
 	makeDecoder,
-	UserCodec,
-	LobbyInitCodec,
+	LobbyStateCodec,
+	LobbyState,
 	ChallengeCodec,
 	AcceptChallengeCodec,
+	UserCodec,
+	User,
 	MatchCodec,
+	Match,
+	Move,
+	moveTypeCodecs,
 } from '.';
 
 const opt = <InnerType extends t.Any>(type: InnerType) =>
@@ -32,7 +37,8 @@ const appendId = (arr: string[], val: string) => {
 	return arr.concat([val]);
 };
 
-export type LobbyState = t.TypeOf<typeof LobbyInitCodec>;
+export const UNINITIALIZED = {};
+
 export const LobbyModule = {
 	initialState: {
 		users: [],
@@ -40,7 +46,7 @@ export const LobbyModule = {
 	} as LobbyState,
 
 	reducers: {
-		init: makeReducer(LobbyInitCodec)<LobbyState>(
+		reset: makeReducer(LobbyStateCodec)<LobbyState>(
 			(state, newState) => newState,
 		),
 
@@ -83,27 +89,82 @@ export const LobbyModule = {
 	},
 };
 
-export type UserState = t.TypeOf<typeof UserCodec>;
 export const UserModule = {
 	initialState: {
 		username: 'guest',
 		rating: 1500,
-	} as UserState,
+	} as User,
 
 	reducers: {
-		init: makeReducer(UserCodec)<UserState>((state, newState) => newState),
+		reset: makeReducer(UserCodec)<User>((state, newState) => newState),
 
-		update: makeReducer(t.partial(UserCodec.props))<UserState>(
-			(state, updates) => ({ ...state, ...updates }),
-		),
+		update: makeReducer(t.partial(UserCodec.props))<User>((state, updates) => ({
+			...state,
+			...updates,
+		})),
 	},
 };
 
-export type MatchState = t.TypeOf<typeof MatchCodec>;
+const doBaseMove = (state: Match, move: Move) => ({
+	...state,
+	log: state.log.concat([move]),
+	playerToMove: (state.playerToMove + 1) % state.players.length,
+});
 export const MatchModule = {
-	initialState: {} as MatchState,
+	initialState: UNINITIALIZED as Match,
 
 	reducers: {
-		init: makeReducer(MatchCodec)<MatchState>((state, newState) => newState),
+		reset: makeReducer(MatchCodec)<Match>((state, newState) => newState),
+
+		movePiece: makeReducer(moveTypeCodecs.movePiece)<Match>((state, move) =>
+			doBaseMove(
+				{
+					...state,
+					players:
+						state.cells[move.fromIndex] &&
+						state.cells[move.fromIndex]!.type === 'king' &&
+						state.cells[move.toIndex]
+							? state.players.map((p, i) =>
+									i === state.playerToMove
+										? { ...p, spawnsAvailable: p.spawnsAvailable + 1 }
+										: p,
+							  )
+							: state.players,
+					cells: state.cells.map((c, i) =>
+						i === move.fromIndex
+							? null
+							: i === move.toIndex
+							? state.cells[move.fromIndex]
+							: c,
+					),
+				},
+				move,
+			),
+		),
+
+		spawnPiece: makeReducer(moveTypeCodecs.movePiece)<Match>((state, move) =>
+			doBaseMove(
+				{
+					...state,
+					players: state.players.map((p, i) =>
+						i === state.playerToMove
+							? { ...p, spawnsAvailable: p.spawnsAvailable - 1 }
+							: p,
+					),
+					cells: state.cells.map((c, i) =>
+						i === move.toIndex
+							? { playerIndex: state.playerToMove, type: 'pawn' }
+							: c,
+					),
+				},
+				move,
+			),
+		),
+
+		offerDraw: makeReducer(moveTypeCodecs.offerDraw)<Match>(
+			(state, move) => state,
+		),
+
+		resign: makeReducer(moveTypeCodecs.resign)<Match>((state, move) => state),
 	},
 };

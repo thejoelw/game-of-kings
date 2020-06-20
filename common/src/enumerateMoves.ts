@@ -6,7 +6,7 @@ export const enumerateMoves = (
   variant: Variant,
   players: { spawnsAvailable: number }[],
   playerToMove: number,
-  cells: ({ playerIndex: number; type: 'king' | 'pawn' } | undefined)[],
+  cells: ({ playerIndex: number; type: 'king' | 'pawn' } | null)[],
   enforceChecks: boolean,
 ) => {
   const board =
@@ -17,7 +17,7 @@ export const enumerateMoves = (
       return board;
     })();
 
-  const moves: { move: string; args: [number, number] }[] = [];
+  const moves: { type: string; fromIndex: number; toIndex: number }[] = [];
 
   cells.forEach((originCell, originIndex) => {
     if (originCell && originCell.playerIndex === playerToMove) {
@@ -36,8 +36,9 @@ export const enumerateMoves = (
               (isKing || destCell.type === 'king'))
           ) {
             moves.push({
-              move: 'movePiece',
-              args: [originIndex, destIndex],
+              type: 'movePiece',
+              fromIndex: originIndex,
+              toIndex: destIndex,
             });
           }
 
@@ -47,8 +48,9 @@ export const enumerateMoves = (
             players[originCell!.playerIndex].spawnsAvailable > 0
           ) {
             moves.push({
-              move: 'spawnPiece',
-              args: [originIndex, destIndex],
+              type: 'spawnPiece',
+              fromIndex: originIndex,
+              toIndex: destIndex,
             });
           }
 
@@ -84,16 +86,18 @@ export const enumerateMoves = (
             if (testCell) {
               if (testCell.playerIndex !== playerToMove) {
                 moves.push({
-                  move: 'movePiece',
-                  args: [originIndex, destIndex],
+                  type: 'movePiece',
+                  fromIndex: originIndex,
+                  toIndex: destIndex,
                 });
               }
 
               break;
             } else {
               moves.push({
-                move: 'movePiece',
-                args: [originIndex, destIndex],
+                type: 'movePiece',
+                fromIndex: originIndex,
+                toIndex: destIndex,
               });
             }
 

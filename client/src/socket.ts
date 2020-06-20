@@ -1,14 +1,18 @@
 import React from 'react';
 import { v4 as uuid } from 'uuid';
 
-import { userId } from './user';
+import { userId, token } from './user';
 
 const ioParams = new URLSearchParams();
 ioParams.set('userId', userId);
-const socket = io(window.location.toString(), { query: ioParams.toString() });
+const socket = io('/', { query: ioParams.toString() });
+
+socket.on('error', (err: any) => console.error(err));
 
 export const send = (event: string, ...args: any[]) =>
 	socket.emit(event, ...args);
+
+send('auth', { token });
 
 const modules = new Map<
 	string,
@@ -61,7 +65,7 @@ export const useModule = <StateType>(
 						if (!mod) {
 							throw new Error('Something went very wrong');
 						}
-
+						console.log(mod.state);
 						mod.state = reducer(mod.state, action);
 						mod.listeners.forEach((setter) => setter(mod!.state));
 					};
