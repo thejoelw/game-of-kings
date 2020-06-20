@@ -80,6 +80,8 @@ const moveDecoder = makeDecoder(MoveCodec);
 		});
 
 		socket.on('match-do-move', async (data: any) => {
+			data = { ...data, date: Date.now() };
+
 			const match = await getModuleInstance(
 				`match-${data.matchId}`,
 				MatchModule,
@@ -105,7 +107,7 @@ const moveDecoder = makeDecoder(MoveCodec);
 			}
 
 			const { type } = moveDecoder(data);
-			match.actors[type]({ ...data, date: Date.now() });
+			match.actors[type](data);
 		});
 	});
 })();

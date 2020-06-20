@@ -98,10 +98,12 @@ export const UserModule = {
 	reducers: {
 		reset: makeReducer(UserCodec)<User>((state, newState) => newState),
 
-		update: makeReducer(t.partial(UserCodec.props))<User>((state, updates) => ({
-			...state,
-			...updates,
-		})),
+		update: makeReducer(t.partial(UserCodec.type.props))<User>(
+			(state, updates) => ({
+				...state,
+				...updates,
+			}),
+		),
 	},
 };
 
