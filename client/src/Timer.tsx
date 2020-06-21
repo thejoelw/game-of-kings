@@ -14,6 +14,9 @@ export const Timer = ({
   active: boolean;
   attachPosition: 'top' | 'bottom';
 }) => {
+  if (remainingTimeMs < 0) {
+    remainingTimeMs = 0;
+  }
   let remaining = remainingTimeMs;
 
   const minutes = Math.floor(remaining / 60000);

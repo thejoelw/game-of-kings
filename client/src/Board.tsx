@@ -67,13 +67,16 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 		return () => window.removeEventListener('mousemove', cb);
 	}, []);
 
-	const validMoves = enumerateMoves(
-		match.variant,
-		match.players,
-		match.playerToMove,
-		match.cells,
-		true,
-	);
+	const validMoves =
+		match.status === 'playing'
+			? enumerateMoves(
+					match.variant,
+					match.players,
+					match.playerToMove,
+					match.cells,
+					true,
+			  )
+			: [];
 
 	const size = Math.sqrt(match.cells.length) * 1.1;
 
@@ -81,12 +84,6 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 	if (selfPlayerIndex === -1) {
 		throw new Error(`Cannot find self player!`);
 	}
-
-	const turnBeginTime = React.useMemo(() => Date.now(), [
-		match.playerToMove === selfPlayerIndex,
-	]);
-
-	const isActive = true;
 
 	return (
 		<div
@@ -105,8 +102,7 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 			>
 				{match.cells.map((cell, index) => {
 					const move =
-						isActive &&
-						(selectedCellIndex === 'spawn'
+						selectedCellIndex === 'spawn'
 							? validMoves.find(
 									(m) => m.type === 'spawnPiece' && m.toIndex === index,
 							  )
@@ -115,7 +111,7 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 										m.type === 'movePiece' &&
 										m.fromIndex === selectedCellIndex &&
 										m.toIndex === index,
-							  ));
+							  );
 
 					let onMouseUp = move
 						? () => {
@@ -160,14 +156,12 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 							return [];
 						}
 
-						const move =
-							isActive &&
-							validMoves.find(
-								(m) =>
-									m.type === 'movePiece' &&
-									m.fromIndex === selectedCellIndex &&
-									m.toIndex === index,
-							);
+						const move = validMoves.find(
+							(m) =>
+								m.type === 'movePiece' &&
+								m.fromIndex === selectedCellIndex &&
+								m.toIndex === index,
+						);
 
 						let color = chroma(colors[cell.playerIndex]);
 						if (cell.type === 'king') {
@@ -264,164 +258,222 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 
 			<div
 				style={{
-					width: '250px',
-					boxShadow: '0 0 8px 0 gray',
-					zIndex: 2,
-					padding: '8px',
+					width: '200px',
 					display: 'flex',
 					flexDirection: 'column',
-					background: `linear-gradient(${
-						match.playerToMove ? 'to top' : 'to bottom'
-					}, ${chroma.scale([colors[match.playerToMove], '#EEEEEE'])(
-						0.5,
-					)} 0%, #EEEEEE 50%)`,
+					justifyContent: 'space-evenly',
 				}}
 			>
-				{match.playerToMove === 0 ? (
-					<CountdownTimer
-						endTime={turnBeginTime + match.players[0].timeForMove}
-						totalTimeMs={5 * 60 * 1000}
-						attachPosition="bottom"
-					/>
-				) : (
-					<PausedTimer
-						remainingTimeMs={match.players[0].timeForMove}
-						totalTimeMs={5 * 60 * 1000}
-						attachPosition="bottom"
-					/>
+				{match.status !== 'playing' && (
+					<div
+						style={{
+							flex: '1',
+							maxHeight: '100px',
+							boxShadow: '0 0 8px 0 gray',
+							zIndex: 2,
+							padding: '8px',
+							background: '#EEEEEE',
+						}}
+					>
+						{{
+							aborted: () => <strong>Game aborted</strong>,
+							drawn: () => <strong>Draw offered and accepted</strong>,
+							checkmate: () => (
+								<>
+									<strong>Checkmate</strong>
+									<div>
+										<UserBadge userId={match.players[match.winner!].userId} />{' '}
+										is victorious!
+									</div>
+								</>
+							),
+							timeout: () => (
+								<>
+									<strong>Timeout</strong>
+									<div>
+										<UserBadge userId={match.players[match.winner!].userId} />{' '}
+										is victorious!
+									</div>
+								</>
+							),
+							resignation: () => (
+								<>
+									<strong>Resignation</strong>
+									<div>
+										<UserBadge userId={match.players[match.winner!].userId} />{' '}
+										is victorious!
+									</div>
+								</>
+							),
+						}[match.status]()}
+					</div>
 				)}
 
 				<div
 					style={{
 						flex: '1',
+						maxHeight: '400px',
+						boxShadow: '0 0 8px 0 gray',
+						zIndex: 2,
+						padding: '8px',
 						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
+						flexDirection: 'column',
+						background:
+							match.status === 'playing'
+								? `linear-gradient(${
+										match.playerToMove ? 'to top' : 'to bottom'
+								  }, ${chroma.scale([colors[match.playerToMove], '#EEEEEE'])(
+										0.5,
+								  )} 0%, #EEEEEE 50%)`
+								: '#EEEEEE',
 					}}
 				>
-					<svg
-						viewBox="-1.1 -1.1 2.2 2.2"
-						xmlns="http://www.w3.org/2000/svg"
-						xmlnsXlink="http://www.w3.org/1999/xlink"
-						style={{
-							width: 50,
-							height: 50,
-						}}
-					>
-						<HexPoly
-							cell={{ x: 0, y: 0 }}
-							fill={colors[0]}
-							scale={1}
-							onMouseDown={
-								selectedCellIndex === undefined &&
-								match.playerToMove === 0 &&
-								selfPlayerIndex === 0 &&
-								match.players[0].spawnsAvailable > 0
-									? (e) => {
-											e.preventDefault();
-											selectCellIndex('spawn');
-									  }
-									: undefined
-							}
-							style={
-								selfPlayerIndex === 0 && match.players[0].spawnsAvailable > 0
-									? { cursor: 'grab' }
-									: {}
-							}
+					{match.playerToMove === 0 ? (
+						<CountdownTimer
+							endTime={match.moveStartDate + match.players[0].timeForMoveMs}
+							totalTimeMs={match.variant.timeInitialMs}
+							attachPosition="bottom"
 						/>
-					</svg>
-					<span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-						x{match.players[0].spawnsAvailable}
-					</span>
-				</div>
+					) : (
+						<PausedTimer
+							remainingTimeMs={match.players[0].timeForMoveMs}
+							totalTimeMs={match.variant.timeInitialMs}
+							attachPosition="bottom"
+						/>
+					)}
 
-				<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
-					<UserBadge userId={match.players[0].userId} />
-				</div>
-
-				<div style={{ display: 'flex', alignItems: 'center' }}>
-					<hr
+					<div
 						style={{
 							flex: '1',
-							border: 'none',
-							backgroundColor: 'silver',
-							height: '1px',
-							margin: '16px 8px',
-						}}
-					/>
-					<span style={{ color: 'silver' }}>VS</span>
-					<hr
-						style={{
-							flex: '1',
-							border: 'none',
-							backgroundColor: 'silver',
-							height: '1px',
-							margin: '16px 8px',
-						}}
-					/>
-				</div>
-
-				<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
-					<UserBadge userId={match.players[1].userId} />
-				</div>
-
-				<div
-					style={{
-						flex: '1',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-					}}
-				>
-					<svg
-						viewBox="-1.1 -1.1 2.2 2.2"
-						xmlns="http://www.w3.org/2000/svg"
-						xmlnsXlink="http://www.w3.org/1999/xlink"
-						style={{
-							width: 50,
-							height: 50,
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
 						}}
 					>
-						<HexPoly
-							cell={{ x: 0, y: 0 }}
-							fill={colors[1]}
-							scale={1}
-							onMouseDown={
-								selectedCellIndex === undefined &&
-								match.playerToMove === 1 &&
-								selfPlayerIndex === 1 &&
-								match.players[1].spawnsAvailable > 0
-									? (e) => {
-											e.preventDefault();
-											selectCellIndex('spawn');
-									  }
-									: undefined
-							}
-							style={
-								selfPlayerIndex === 1 && match.players[1].spawnsAvailable > 0
-									? { cursor: 'grab' }
-									: {}
-							}
-						/>
-					</svg>
-					<span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-						x{match.players[1].spawnsAvailable}
-					</span>
-				</div>
+						<svg
+							viewBox="-1.1 -1.1 2.2 2.2"
+							xmlns="http://www.w3.org/2000/svg"
+							xmlnsXlink="http://www.w3.org/1999/xlink"
+							style={{
+								width: 50,
+								height: 50,
+							}}
+						>
+							<HexPoly
+								cell={{ x: 0, y: 0 }}
+								fill={colors[0]}
+								scale={1}
+								onMouseDown={
+									selectedCellIndex === undefined &&
+									match.playerToMove === 0 &&
+									selfPlayerIndex === 0 &&
+									match.players[0].spawnsAvailable > 0
+										? (e) => {
+												e.preventDefault();
+												selectCellIndex('spawn');
+										  }
+										: undefined
+								}
+								style={
+									selfPlayerIndex === 0 && match.players[0].spawnsAvailable > 0
+										? { cursor: 'grab' }
+										: {}
+								}
+							/>
+						</svg>
+						<span style={{ fontWeight: 'bold', fontSize: '16px' }}>
+							x{match.players[0].spawnsAvailable}
+						</span>
+					</div>
 
-				{match.playerToMove === 1 ? (
-					<CountdownTimer
-						endTime={turnBeginTime + match.players[1].timeForMove}
-						totalTimeMs={5 * 60 * 1000}
-						attachPosition="top"
-					/>
-				) : (
-					<PausedTimer
-						remainingTimeMs={match.players[1].timeForMove}
-						totalTimeMs={5 * 60 * 1000}
-						attachPosition="top"
-					/>
-				)}
+					<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+						<UserBadge userId={match.players[0].userId} />
+					</div>
+
+					<div style={{ display: 'flex', alignItems: 'center' }}>
+						<hr
+							style={{
+								flex: '1',
+								border: 'none',
+								backgroundColor: 'silver',
+								height: '1px',
+								margin: '16px 8px',
+							}}
+						/>
+						<span style={{ color: 'silver' }}>VS</span>
+						<hr
+							style={{
+								flex: '1',
+								border: 'none',
+								backgroundColor: 'silver',
+								height: '1px',
+								margin: '16px 8px',
+							}}
+						/>
+					</div>
+
+					<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+						<UserBadge userId={match.players[1].userId} />
+					</div>
+
+					<div
+						style={{
+							flex: '1',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+						}}
+					>
+						<svg
+							viewBox="-1.1 -1.1 2.2 2.2"
+							xmlns="http://www.w3.org/2000/svg"
+							xmlnsXlink="http://www.w3.org/1999/xlink"
+							style={{
+								width: 50,
+								height: 50,
+							}}
+						>
+							<HexPoly
+								cell={{ x: 0, y: 0 }}
+								fill={colors[1]}
+								scale={1}
+								onMouseDown={
+									selectedCellIndex === undefined &&
+									match.playerToMove === 1 &&
+									selfPlayerIndex === 1 &&
+									match.players[1].spawnsAvailable > 0
+										? (e) => {
+												e.preventDefault();
+												selectCellIndex('spawn');
+										  }
+										: undefined
+								}
+								style={
+									selfPlayerIndex === 1 && match.players[1].spawnsAvailable > 0
+										? { cursor: 'grab' }
+										: {}
+								}
+							/>
+						</svg>
+						<span style={{ fontWeight: 'bold', fontSize: '16px' }}>
+							x{match.players[1].spawnsAvailable}
+						</span>
+					</div>
+
+					{match.playerToMove === 1 ? (
+						<CountdownTimer
+							endTime={match.moveStartDate + match.players[1].timeForMoveMs}
+							totalTimeMs={match.variant.timeInitialMs}
+							attachPosition="top"
+						/>
+					) : (
+						<PausedTimer
+							remainingTimeMs={match.players[1].timeForMoveMs}
+							totalTimeMs={match.variant.timeInitialMs}
+							attachPosition="top"
+						/>
+					)}
+				</div>
 			</div>
 		</div>
 	);

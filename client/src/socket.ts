@@ -5,7 +5,9 @@ import { userId, token } from './user';
 
 const ioParams = new URLSearchParams();
 ioParams.set('userId', userId);
-const socket = io('/', { query: ioParams.toString() });
+const socket = io(`/`, {
+	query: ioParams.toString(),
+});
 
 socket.on('error', (err: any) => console.error(err));
 

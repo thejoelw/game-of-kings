@@ -26,7 +26,9 @@ export default () => (
         verticalAlign: 'middle',
       }}
     >
-      gameofkings.io
+      <a href="/" style={{ color: 'black' }}>
+        gameofkings.io
+      </a>
     </h1>
     <div style={{ flex: '1' }}></div>
     {/*

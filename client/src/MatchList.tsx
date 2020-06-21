@@ -58,7 +58,13 @@ export default ({
           send('lobby-extend-challenge', {
             id: uuid(),
             challengerId: userId,
-            variant: { radius: 5, spawnsAvailable: 12 },
+            variant: {
+              radius: 5,
+              spawnsAvailable: 12,
+              // timeInitialMs: 5 * 60 * 1000,
+              timeInitialMs: 10 * 1000,
+              timeIncrementMs: 5 * 1000,
+            },
           })
         }
       >

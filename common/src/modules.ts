@@ -12,6 +12,7 @@ import {
 	Match,
 	Move,
 	moveTypeCodecs,
+	TimeoutCodec,
 } from '.';
 
 const opt = <InnerType extends t.Any>(type: InnerType) =>
@@ -110,7 +111,19 @@ export const UserModule = {
 const doBaseMove = (state: Match, move: Move) => ({
 	...state,
 	log: state.log.concat([move]),
+	players: state.players.map((p, i) =>
+		i === state.playerToMove
+			? {
+					...p,
+					timeForMoveMs:
+						p.timeForMoveMs -
+						(move.date - state.moveStartDate) +
+						state.variant.timeIncrementMs,
+			  }
+			: p,
+	),
 	playerToMove: (state.playerToMove + 1) % state.players.length,
+	moveStartDate: move.date,
 });
 export const MatchModule = {
 	initialState: UNINITIALIZED as Match,
@@ -139,6 +152,16 @@ export const MatchModule = {
 							? state.cells[move.fromIndex]
 							: c,
 					),
+					status:
+						state.cells[move.toIndex] &&
+						state.cells[move.toIndex]!.type === 'king'
+							? 'checkmate'
+							: state.status,
+					winner:
+						state.cells[move.toIndex] &&
+						state.cells[move.toIndex]!.type === 'king'
+							? state.playerToMove
+							: state.winner,
 				},
 				move,
 			),
@@ -158,6 +181,16 @@ export const MatchModule = {
 							? { playerIndex: state.playerToMove, type: 'pawn' }
 							: c,
 					),
+					status:
+						state.cells[move.toIndex] &&
+						state.cells[move.toIndex]!.type === 'king'
+							? 'checkmate'
+							: state.status,
+					winner:
+						state.cells[move.toIndex] &&
+						state.cells[move.toIndex]!.type === 'king'
+							? state.playerToMove
+							: state.winner,
 				},
 				move,
 			),
@@ -168,5 +201,11 @@ export const MatchModule = {
 		),
 
 		resign: makeReducer(moveTypeCodecs.resign)<Match>((state, move) => state),
+
+		timeout: makeReducer(TimeoutCodec)<Match>((state, { winner }) => ({
+			...state,
+			status: 'timeout',
+			winner,
+		})),
 	},
 };
