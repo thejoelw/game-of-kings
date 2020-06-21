@@ -11,6 +11,7 @@ import {
 	AcceptChallengeCodec,
 	PieceCodec,
 	MoveCodec,
+	TimeoutCodec,
 	MatchCodec,
 } from '.';
 
@@ -24,4 +25,5 @@ export type LobbyState = t.TypeOf<typeof LobbyStateCodec>;
 export type AcceptChallenge = t.TypeOf<typeof AcceptChallengeCodec>;
 export type Piece = t.TypeOf<typeof PieceCodec>;
 export type Move = t.TypeOf<typeof MoveCodec>;
+export type Timeout = t.TypeOf<typeof TimeoutCodec>;
 export type Match = t.TypeOf<typeof MatchCodec>;

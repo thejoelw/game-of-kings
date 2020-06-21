@@ -1,3 +1,4 @@
+import * as t from 'io-ts';
 import { v4 as uuid } from 'uuid';
 
 import {
@@ -28,7 +29,10 @@ const hasOwnProperty = <X extends {}, Y extends PropertyKey>(
 	prop: Y,
 ): obj is X & Record<Y, unknown> => obj.hasOwnProperty(prop);
 
-const moveDecoder = makeDecoder(MoveCodec);
+const moveDecoder = makeDecoder(
+	t.intersection([MoveCodec, t.type({ matchId: t.string })]),
+);
+const matchTimeouts = new Map<string, NodeJS.Timeout>();
 
 (async () => {
 	const lobby = await createModuleInstance('lobby', LobbyModule);
@@ -63,10 +67,11 @@ const moveDecoder = makeDecoder(MoveCodec);
 					(userId) => ({
 						userId,
 						spawnsAvailable: challenge.variant.spawnsAvailable,
-						timeForMove: 5 * 60 * 1000,
+						timeForMoveMs: challenge.variant.timeInitialMs,
 					}),
 				),
 				playerToMove: 0,
+				moveStartDate: Date.now(),
 				cells: makeCells(challenge.variant),
 				status: 'playing',
 				winner: undefined,
@@ -81,33 +86,66 @@ const moveDecoder = makeDecoder(MoveCodec);
 
 		socket.on('match-do-move', async (data: any) => {
 			data = { ...data, date: Date.now() };
+			const { type, matchId } = moveDecoder(data);
 
-			const match = await getModuleInstance(
-				`match-${data.matchId}`,
-				MatchModule,
-			);
+			const match = await getModuleInstance(`match-${matchId}`, MatchModule);
 			if (!match) {
-				throw new Error(`Invalid matchId: ${data.matchId}`);
+				throw new Error(`Invalid matchId: ${matchId}`);
 			}
 
-			const candidateMoves = enumerateMoves(
-				match.getState().variant,
-				match.getState().players,
-				match.getState().playerToMove,
-				match.getState().cells,
-				true,
-			);
+			{
+				const {
+					variant,
+					players,
+					playerToMove,
+					cells,
+					status,
+				} = match.getState();
 
-			if (
-				!candidateMoves.some((m) =>
-					Object.entries(m).every(([k, v]) => data[k] === v),
-				)
-			) {
-				throw new Error(`Invalid move: ${JSON.stringify(data)}`);
+				if (status !== 'playing') {
+					throw new Error(`You cannot move in an ${status} match`);
+				}
+
+				if (players[playerToMove].userId !== userId) {
+					throw new Error(`You cannot move for that player`);
+				}
+
+				const candidateMoves = enumerateMoves(
+					variant,
+					players,
+					playerToMove,
+					cells,
+					true,
+				);
+
+				if (
+					!candidateMoves.some((m) =>
+						Object.entries(m).every(([k, v]) => data[k] === v),
+					)
+				) {
+					throw new Error(`Invalid move: ${JSON.stringify(data)}`);
+				}
 			}
 
-			const { type } = moveDecoder(data);
+			if (matchTimeouts.has(matchId)) {
+				clearTimeout(matchTimeouts.get(matchId)!);
+				matchTimeouts.delete(matchId);
+			}
+
 			match.actors[type](data);
+
+			{
+				const { players, playerToMove, moveStartDate } = match.getState();
+
+				if (playerToMove !== undefined) {
+					const timeout = setTimeout(() => {
+						matchTimeouts.delete(matchId);
+						match.actors.timeout({ winner: 1 - playerToMove });
+					}, moveStartDate + players[playerToMove].timeForMoveMs - Date.now());
+
+					matchTimeouts.set(matchId, timeout);
+				}
+			}
 		});
 	});
 })();

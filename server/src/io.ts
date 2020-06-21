@@ -1,19 +1,30 @@
 import fs from 'fs';
 import http from 'http';
+import libstatic from 'node-static';
 import socketIO, { Socket } from 'socket.io';
 
-const server = http.createServer((req, res) => {
-	fs.readFile(__dirname + '/index.html', (err, data) => {
-		if (err) {
-			res.writeHead(500);
-			return res.end('Error loading index.html');
-		}
+const getEnvVar = (key: string) => {
+	const val = process.env[key];
+	if (!val) {
+		throw new Error(`Must specify a ${key} env var`);
+	}
+	return val;
+};
 
-		res.writeHead(200);
-		res.end(data);
-	});
+const fileServer = new libstatic.Server('../client/build');
+
+const server = http.createServer((req, res) => {
+	req
+		.addListener('end', () =>
+			fileServer.serve(req, res, (err) => {
+				if (err && (err as any).status === 404) {
+					fileServer.serveFile('/index.html', 200, {}, req, res);
+				}
+			}),
+		)
+		.resume();
 });
 
 export const io = socketIO(server);
 
-server.listen(3001);
+server.listen(getEnvVar('PORT'));

@@ -8,7 +8,9 @@ const orNull = <InnerType extends t.Any>(type: InnerType) =>
 export const SubMsgCodec = t.string;
 export const UnsubMsgCodec = t.string;
 
-export const AuthCodec = t.strict({ token: t.string });
+export const AuthCodec = t.strict({
+	token: t.string,
+});
 
 export const UserCodec = t.strict({
 	username: t.string,
@@ -18,6 +20,8 @@ export const UserCodec = t.strict({
 export const VariantCodec = t.strict({
 	radius: t.number,
 	spawnsAvailable: t.number,
+	timeInitialMs: t.number,
+	timeIncrementMs: t.number,
 });
 
 export const ChallengeCodec = t.strict({
@@ -68,6 +72,9 @@ export const moveTypeCodecs = {
 	offerDraw: t.strict({ ...MoveCodec.type.props }),
 	resign: t.strict({ ...MoveCodec.type.props }),
 };
+export const TimeoutCodec = t.strict({
+	winner: t.number,
+});
 export const MatchCodec = t.strict({
 	variant: VariantCodec,
 	log: t.array(MoveCodec),
@@ -75,16 +82,18 @@ export const MatchCodec = t.strict({
 		t.strict({
 			userId: t.string,
 			spawnsAvailable: t.number,
-			timeForMove: t.number,
+			timeForMoveMs: t.number,
 		}),
 	),
 	playerToMove: t.number,
+	moveStartDate: t.number,
 	cells: t.array(orNull(PieceCodec)),
 	status: t.keyof({
 		playing: null,
 		aborted: null,
 		drawn: null,
-		won: null,
+		checkmate: null,
+		timeout: null,
 	}),
 	winner: opt(t.number),
 });
