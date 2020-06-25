@@ -50,13 +50,13 @@ export const PieceCodec = t.strict({
 	type: t.keyof({ king: null, pawn: null }),
 });
 export const MoveCodec = t.strict({
+	date: t.number,
 	type: t.keyof({
 		movePiece: null,
 		spawnPiece: null,
 		offerDraw: null,
 		resign: null,
 	}),
-	date: t.number,
 });
 export const moveTypeCodecs = {
 	movePiece: t.strict({
@@ -75,6 +75,11 @@ export const moveTypeCodecs = {
 export const TimeoutCodec = t.strict({
 	winner: t.number,
 });
+export const ChatCodec = t.strict({
+	date: t.number,
+	userId: t.string,
+	msg: t.string,
+});
 export const MatchCodec = t.strict({
 	variant: VariantCodec,
 	log: t.array(MoveCodec),
@@ -88,6 +93,7 @@ export const MatchCodec = t.strict({
 	playerToMove: t.number,
 	moveStartDate: t.number,
 	cells: t.array(orNull(PieceCodec)),
+	chat: t.array(ChatCodec),
 	status: t.keyof({
 		playing: null,
 		aborted: null,
@@ -97,3 +103,11 @@ export const MatchCodec = t.strict({
 	}),
 	winner: opt(t.number),
 });
+export const MatchPartialCodec = t.exact(
+	t.partial({
+		...MatchCodec.type.props,
+		players: t.array(
+			t.exact(t.partial(MatchCodec.type.props.players.type.type.props)),
+		),
+	}),
+);

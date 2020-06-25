@@ -12,7 +12,7 @@ import {
 	enumerateMoves,
 } from 'game-of-kings-common';
 
-import './auth';
+import { tutorialUserId } from './auth';
 import { createModuleInstance, getModuleInstance } from './modules';
 import { io } from './io';
 
@@ -59,20 +59,24 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 
 			const matchId = uuid();
 
+			const players = [challenge.challengerId, userId].map((userId) => ({
+				userId,
+				spawnsAvailable: challenge.variant.spawnsAvailable,
+				timeForMoveMs: challenge.variant.timeInitialMs,
+			}));
+
 			const match = await createModuleInstance(`match-${matchId}`, MatchModule);
 			match.actors.reset({
 				variant: challenge.variant,
 				log: [],
-				players: shuffleInPlace([challenge.challengerId, userId]).map(
-					(userId) => ({
-						userId,
-						spawnsAvailable: challenge.variant.spawnsAvailable,
-						timeForMoveMs: challenge.variant.timeInitialMs,
-					}),
-				),
+				players:
+					challenge.challengerId === tutorialUserId
+						? players
+						: shuffleInPlace(players),
 				playerToMove: 0,
 				moveStartDate: Date.now(),
 				cells: makeCells(challenge.variant),
+				chat: [],
 				status: 'playing',
 				winner: undefined,
 			});
@@ -147,5 +151,33 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 				}
 			}
 		});
+
+		if (userId === tutorialUserId) {
+			socket.on('match-chat', async (data: any) => {
+				data = { ...data, date: Date.now(), userId };
+
+				const match = await getModuleInstance(
+					`match-${data.matchId}`,
+					MatchModule,
+				);
+				if (!match) {
+					throw new Error(`Invalid matchId: ${data.matchId}`);
+				}
+
+				match.actors.chat(data);
+			});
+
+			socket.on('match-reset-partial', async (data: any) => {
+				const match = await getModuleInstance(
+					`match-${data.matchId}`,
+					MatchModule,
+				);
+				if (!match) {
+					throw new Error(`Invalid matchId: ${data.matchId}`);
+				}
+
+				match.actors.resetPartial(data);
+			});
+		}
 	});
 })();

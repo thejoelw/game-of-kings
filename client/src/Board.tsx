@@ -128,6 +128,11 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 							cell={board[index]}
 							fill={move ? '#E0E0E0' : '#C0C0C0'}
 							scale={1}
+							onMouseDown={() =>
+								console.log(
+									`${board[index].q},${board[index].r},${board[index].s}`,
+								)
+							}
 							onMouseUp={onMouseUp}
 							onMouseOver={
 								move
@@ -306,6 +311,25 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 								</>
 							),
 						}[match.status]()}
+					</div>
+				)}
+
+				{match.chat.length > 0 && (
+					<div
+						style={{
+							flex: '1',
+							boxShadow: '0 0 8px 0 gray',
+							zIndex: 2,
+							padding: '8px',
+							background: '#EEEEEE',
+							overflowY: 'auto',
+						}}
+					>
+						{match.chat.map((c, index) => (
+							<p key={index} ref={(el) => el && el.scrollIntoView()}>
+								{c.msg}
+							</p>
+						))}
 					</div>
 				)}
 

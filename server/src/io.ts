@@ -14,6 +14,16 @@ const getEnvVar = (key: string) => {
 const fileServer = new libstatic.Server('../client/build');
 
 const server = http.createServer((req, res) => {
+	if (
+		!['localhost:3000', 'localhost:3001', 'gameofkings.io'].includes(
+			req.headers.host || '',
+		)
+	) {
+		console.error(`Not responding to request to host ${req.headers.host}`);
+		req.destroy();
+		return;
+	}
+
 	req
 		.addListener('end', () =>
 			fileServer.serve(req, res, (err) => {

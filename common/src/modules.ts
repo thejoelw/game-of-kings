@@ -10,9 +10,11 @@ import {
 	User,
 	MatchCodec,
 	Match,
+	MatchPartialCodec,
 	Move,
 	moveTypeCodecs,
 	TimeoutCodec,
+	ChatCodec,
 } from '.';
 
 const opt = <InnerType extends t.Any>(type: InnerType) =>
@@ -131,6 +133,18 @@ export const MatchModule = {
 	reducers: {
 		reset: makeReducer(MatchCodec)<Match>((state, newState) => newState),
 
+		resetPartial: makeReducer(MatchPartialCodec)<Match>(
+			(state, updateState) => ({
+				...state,
+				...updateState,
+				players: state.players.map((p, i) =>
+					updateState.players && updateState.players[i]
+						? { ...p, ...updateState.players[i] }
+						: p,
+				),
+			}),
+		),
+
 		movePiece: makeReducer(moveTypeCodecs.movePiece)<Match>((state, move) =>
 			doBaseMove(
 				{
@@ -206,6 +220,11 @@ export const MatchModule = {
 			...state,
 			status: 'timeout',
 			winner,
+		})),
+
+		chat: makeReducer(ChatCodec)<Match>((state, chat) => ({
+			...state,
+			chat: state.chat.concat([chat]),
 		})),
 	},
 };

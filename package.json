@@ -3,6 +3,7 @@
 	"workspaces": [
 		"common",
 		"client",
-		"server"
+		"server",
+		"tutorial-client"
 	]
 }

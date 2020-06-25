@@ -12,6 +12,7 @@ import {
 	PieceCodec,
 	MoveCodec,
 	TimeoutCodec,
+	ChatCodec,
 	MatchCodec,
 } from '.';
 
@@ -26,4 +27,5 @@ export type AcceptChallenge = t.TypeOf<typeof AcceptChallengeCodec>;
 export type Piece = t.TypeOf<typeof PieceCodec>;
 export type Move = t.TypeOf<typeof MoveCodec>;
 export type Timeout = t.TypeOf<typeof TimeoutCodec>;
+export type Chat = t.TypeOf<typeof ChatCodec>;
 export type Match = t.TypeOf<typeof MatchCodec>;

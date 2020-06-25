@@ -7,9 +7,8 @@ import { io } from './io';
 export type ModuleInstance<StateType, ReducersType> = {
 	actors: { [key in keyof ReducersType]: (data: any) => void };
 	getState: () => StateType;
-	join: (socket: Socket) => void;
-	leave: (socket: Socket) => void;
-	getJoinedCount: () => number;
+	join: (userId: string) => void;
+	leave: (userId: string) => void;
 };
 export type GenericModuleInstance = ModuleInstance<any, Record<string, never>>;
 
@@ -66,14 +65,11 @@ export const createModuleInstance = async <
 	}
 
 	let state: StateType = defn.initialState;
-	let joinedCount = 0;
 
 	const actors: Record<string, (action: any) => void> = {};
 
 	Object.entries(defn.reducers).forEach(([k, reducer]) => {
 		actors[k] = (action: any) => {
-			console.log('Executing action:', k, action);
-
 			state = reducer(state, action);
 			io.to(name).emit(`${name}-${k}`, action);
 		};
@@ -82,22 +78,16 @@ export const createModuleInstance = async <
 	const inst = {
 		actors: actors as { [key in keyof ReducersType]: (data: any) => void },
 		getState: () => state,
-		join: (socket: Socket) => {
-			socket.emit(`${name}-reset`, state);
-			joinedCount++;
-
+		join: (userId: string) => {
 			if (actors.hasOwnProperty('join')) {
-				actors.join(socket.request._query['userId']);
+				actors.join(userId);
 			}
 		},
-		leave: (socket: Socket) => {
+		leave: (userId: string) => {
 			if (actors.hasOwnProperty('leave')) {
-				actors.leave(socket.request._query['userId']);
+				actors.leave(userId);
 			}
-
-			joinedCount--;
 		},
-		getJoinedCount: () => joinedCount,
 	};
 
 	moduleInstances.set(name, inst);
@@ -105,30 +95,64 @@ export const createModuleInstance = async <
 };
 
 io.on('connection', (socket) => {
+	console.log(`Socket with id ${socket.id} just connected`);
+
+	const userId = socket.handshake.query['userId'];
+
+	// Gotta block joining/leaving rooms due to https://github.com/socketio/socket.io/issues/3562
+	let roomPromise: Promise<void> = Promise.resolve();
+
 	const subDecoder = makeDecoder(SubMsgCodec);
 	socket.on('sub', async (data: any) => {
 		const name = subDecoder(data);
+
 		const inst = await getModuleInstance(name, {
 			initialState: {},
 			reducers: {},
 		});
-		if (inst && !socket.rooms.hasOwnProperty(name)) {
-			socket.join(name);
-			inst.join(socket);
-		}
+
+		// console.log(
+		// 	'sub',
+		// 	socket.id,
+		// 	name,
+		// 	!!inst,
+		// 	!socket.rooms.hasOwnProperty(name),
+		// );
+
+		roomPromise = roomPromise.then(() => {
+			if (inst && !socket.rooms.hasOwnProperty(name)) {
+				return new Promise((resolve) =>
+					socket.join(name, () => {
+						inst.join(userId);
+						socket.emit(`${name}-reset`, inst.getState());
+
+						resolve();
+					}),
+				);
+			}
+		});
 	});
 
 	const unsubDecoder = makeDecoder(UnsubMsgCodec);
 	socket.on('unsub', async (data: any) => {
 		const name = unsubDecoder(data);
+
 		const inst = await getModuleInstance(name, {
 			initialState: {},
 			reducers: {},
 		});
-		if (inst && socket.rooms.hasOwnProperty(name)) {
-			socket.leave(name);
-			inst.leave(socket);
-		}
+
+		roomPromise = roomPromise.then(() => {
+			if (inst && socket.rooms.hasOwnProperty(name)) {
+				return new Promise((resolve) =>
+					socket.leave(name, () => {
+						inst.leave(userId);
+
+						resolve();
+					}),
+				);
+			}
+		});
 	});
 
 	socket.on('disconnecting', (reason) => {
@@ -137,8 +161,9 @@ io.on('connection', (socket) => {
 				initialState: {},
 				reducers: {},
 			});
+
 			if (inst) {
-				inst.leave(socket);
+				inst.leave(userId);
 			}
 		});
 	});
