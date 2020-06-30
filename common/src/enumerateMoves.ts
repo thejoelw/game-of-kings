@@ -1,23 +1,18 @@
-import { Variant, makeBoard, Board } from '.';
+import { Move, Variant, getBoard } from '.';
 
-const boards = new WeakMap<Variant, Board>();
+interface BoardState {
+  variant: Variant;
+  players: { spawnsAvailable: number }[];
+  playerToMove: number;
+  cells: ({ playerIndex: number; type: 'king' | 'pawn' } | null)[];
+}
 
-export const enumerateMoves = (
-  variant: Variant,
-  players: { spawnsAvailable: number }[],
-  playerToMove: number,
-  cells: ({ playerIndex: number; type: 'king' | 'pawn' } | null)[],
-  enforceChecks: boolean,
-) => {
-  const board =
-    boards.get(variant) ||
-    (() => {
-      const board = makeBoard(variant);
-      boards.set(variant, board);
-      return board;
-    })();
+export const enumeratePseudoMoves = (boardState: BoardState): Move[] => {
+  const { variant, players, playerToMove, cells } = boardState;
 
-  const moves: { type: string; fromIndex: number; toIndex: number }[] = [];
+  const board = getBoard(variant);
+
+  const moves: Move[] = [{ type: 'pass' }];
 
   cells.forEach((originCell, originIndex) => {
     if (originCell && originCell.playerIndex === playerToMove) {
@@ -110,3 +105,67 @@ export const enumerateMoves = (
 
   return moves;
 };
+
+export const enumerateLegalMoves = (boardState: BoardState): Move[] =>
+  enumeratePseudoMoves(boardState).filter((m) => {
+    if (boardState.variant.formation === 'tutorial') {
+      return true;
+    }
+
+    const state_1 = reduceMove(boardState, m);
+    return !enumeratePseudoMoves(state_1).some((n) => {
+      const state_2 = reduceMove(state_1, n);
+      return !state_2.cells.some(
+        (c) => c && c.type === 'king' && c.playerIndex === state_2.playerToMove,
+      );
+    });
+  });
+
+export const reduceMove = (
+  { variant, players, playerToMove, cells }: BoardState,
+  move: Move,
+): BoardState => {
+  switch (move.type) {
+    case 'movePiece':
+      players =
+        cells[move.fromIndex]!.type === 'king' && cells[move.toIndex]
+          ? players.map((p, i) =>
+              i === playerToMove
+                ? { ...p, spawnsAvailable: p.spawnsAvailable + 1 }
+                : p,
+            )
+          : players;
+      cells = cells.map((c, i) =>
+        i === move.fromIndex
+          ? null
+          : i === move.toIndex
+          ? cells[move.fromIndex]
+          : c,
+      );
+      break;
+
+    case 'spawnPiece':
+      players = players.map((p, i) =>
+        i === playerToMove
+          ? { ...p, spawnsAvailable: p.spawnsAvailable - 1 }
+          : p,
+      );
+      cells = cells.map((c, i) =>
+        i === move.toIndex ? { playerIndex: playerToMove, type: 'pawn' } : c,
+      );
+      break;
+
+    case 'pass':
+      break;
+  }
+
+  return {
+    variant,
+    players,
+    playerToMove: 1 - playerToMove,
+    cells,
+  };
+};
+
+export const isCheckmated = (boardState: BoardState) =>
+  enumerateLegalMoves(boardState).length === 0;

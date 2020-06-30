@@ -2,7 +2,7 @@ import {
 	MatchModule,
 	UNINITIALIZED,
 	Match,
-	makeBoard,
+	getBoard,
 	Piece,
 } from 'game-of-kings-common';
 
@@ -34,7 +34,7 @@ export const runTutorial = async (matchId: string) => {
 		cells: baseMatch.cells.map(() => null),
 	});
 
-	const board = makeBoard(baseMatch.variant);
+	const board = getBoard(baseMatch.variant);
 
 	const lookupCellIndex = (key: string) =>
 		board.findIndex((cell) => `${cell.q},${cell.r},${cell.s}` === key);
@@ -105,7 +105,6 @@ export const runTutorial = async (matchId: string) => {
 					}
 
 					if (match.log.length > 0) {
-						console.log(movePartial, match.log[match.log.length - 1]);
 						if (
 							Object.entries(movePartial).every(
 								([k, v]) =>
@@ -117,33 +116,6 @@ export const runTutorial = async (matchId: string) => {
 							unlisten();
 							return resolve();
 						}
-					}
-
-					send('match-reset-partial', {
-						matchId,
-						playerToMove: 1,
-					});
-				},
-			);
-		});
-
-	const waitForWin = () =>
-		new Promise((resolve, reject) => {
-			const unlisten = onModuleUpdate(
-				`match-${matchId}`,
-				MatchModule,
-				(match) => {
-					if (match === UNINITIALIZED) {
-						return;
-					}
-
-					if (match.status !== 'playing') {
-						unlisten();
-						return resolve();
-					}
-
-					if (match.playerToMove !== 0) {
-						return;
 					}
 
 					send('match-reset-partial', {
@@ -259,10 +231,9 @@ export const runTutorial = async (matchId: string) => {
 		'-4,1,3': 'p',
 		'3,1,-4': 'B',
 	});
-	await sendChat(`Capture the enemy king to win.`);
-
-	await waitForWin();
+	await sendChat(`Capture the enemy king using a pawn.`);
+	await waitForMove({ type: 'movePiece', toIndex: lookupCellIndex('3,1,-4') });
 	await wait(0.5);
 
-	await sendChat(`You've completed the tutorial.`);
+	await sendChat(`You've completed the tutorial!`);
 };

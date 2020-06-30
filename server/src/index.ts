@@ -8,8 +8,7 @@ import {
 	makeCells,
 	makeDecoder,
 	MoveCodec,
-	moveTypeCodecs,
-	enumerateMoves,
+	enumerateLegalMoves,
 } from 'game-of-kings-common';
 
 import { tutorialUserId } from './auth';
@@ -98,13 +97,7 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 			}
 
 			{
-				const {
-					variant,
-					players,
-					playerToMove,
-					cells,
-					status,
-				} = match.getState();
+				const { players, playerToMove, status } = match.getState();
 
 				if (status !== 'playing') {
 					throw new Error(`You cannot move in an ${status} match`);
@@ -114,13 +107,7 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 					throw new Error(`You cannot move for that player`);
 				}
 
-				const candidateMoves = enumerateMoves(
-					variant,
-					players,
-					playerToMove,
-					cells,
-					true,
-				);
+				const candidateMoves = enumerateLegalMoves(match.getState());
 
 				if (
 					!candidateMoves.some((m) =>
@@ -136,7 +123,7 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 				matchTimeouts.delete(matchId);
 			}
 
-			match.actors[type](data);
+			match.actors.doMove(data);
 
 			{
 				const { players, playerToMove, moveStartDate } = match.getState();

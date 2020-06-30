@@ -11,10 +11,11 @@ import {
 	MatchCodec,
 	Match,
 	MatchPartialCodec,
-	Move,
-	moveTypeCodecs,
+	DoMoveCodec,
 	TimeoutCodec,
 	ChatCodec,
+	reduceMove,
+	isCheckmated,
 } from '.';
 
 const opt = <InnerType extends t.Any>(type: InnerType) =>
@@ -110,23 +111,6 @@ export const UserModule = {
 	},
 };
 
-const doBaseMove = (state: Match, move: Move) => ({
-	...state,
-	log: state.log.concat([move]),
-	players: state.players.map((p, i) =>
-		i === state.playerToMove
-			? {
-					...p,
-					timeForMoveMs:
-						p.timeForMoveMs -
-						(move.date - state.moveStartDate) +
-						state.variant.timeIncrementMs,
-			  }
-			: p,
-	),
-	playerToMove: (state.playerToMove + 1) % state.players.length,
-	moveStartDate: move.date,
-});
 export const MatchModule = {
 	initialState: UNINITIALIZED as Match,
 
@@ -145,92 +129,46 @@ export const MatchModule = {
 			}),
 		),
 
-		movePiece: makeReducer(moveTypeCodecs.movePiece)<Match>((state, move) =>
-			doBaseMove(
-				{
-					...state,
-					players:
-						state.cells[move.fromIndex] &&
-						state.cells[move.fromIndex]!.type === 'king' &&
-						state.cells[move.toIndex]
-							? state.players.map((p, i) =>
-									i === state.playerToMove
-										? { ...p, spawnsAvailable: p.spawnsAvailable + 1 }
-										: p,
-							  )
-							: state.players,
-					cells: state.cells.map((c, i) =>
-						i === move.fromIndex
-							? null
-							: i === move.toIndex
-							? state.cells[move.fromIndex]
-							: c,
-					),
-					status:
-						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king' &&
-						state.cells.filter(
-							(c) =>
-								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
-						).length === 1
-							? 'checkmate'
-							: state.status,
-					winner:
-						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king' &&
-						state.cells.filter(
-							(c) =>
-								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
-						).length === 1
-							? state.playerToMove
-							: state.winner,
-				},
-				move,
-			),
-		),
+		doMove: makeReducer(DoMoveCodec)<Match>((state, move) => {
+			const reduction = reduceMove(state, move);
+			state = {
+				...state,
+				...reduction,
+				players: state.players.map((p, i) => ({
+					...p,
+					...reduction.players[i],
+				})),
+			};
 
-		spawnPiece: makeReducer(moveTypeCodecs.movePiece)<Match>((state, move) =>
-			doBaseMove(
-				{
-					...state,
-					players: state.players.map((p, i) =>
-						i === state.playerToMove
-							? { ...p, spawnsAvailable: p.spawnsAvailable - 1 }
-							: p,
-					),
-					cells: state.cells.map((c, i) =>
-						i === move.toIndex
-							? { playerIndex: state.playerToMove, type: 'pawn' }
-							: c,
-					),
-					status:
-						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king' &&
-						state.cells.filter(
-							(c) =>
-								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
-						).length === 1
-							? 'checkmate'
-							: state.status,
-					winner:
-						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king' &&
-						state.cells.filter(
-							(c) =>
-								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
-						).length === 1
-							? state.playerToMove
-							: state.winner,
-				},
-				move,
-			),
-		),
+			state = {
+				...state,
+				log: state.log.concat([move]),
+				players: state.players.map((p, i) =>
+					i === state.playerToMove
+						? {
+								...p,
+								timeForMoveMs:
+									p.timeForMoveMs -
+									(move.date - state.moveStartDate) +
+									state.variant.timeIncrementMs,
+						  }
+						: p,
+				),
+				moveStartDate: move.date,
+			};
 
-		offerDraw: makeReducer(moveTypeCodecs.offerDraw)<Match>(
-			(state, move) => state,
-		),
+			if (isCheckmated(state)) {
+				state.status = 'checkmate';
+				state.winner = 1 - state.playerToMove;
+			} else if (
+				state.log.length >= 2 &&
+				state.log.slice(-2).every((l) => l.type === 'pass')
+			) {
+				state.status = 'drawn';
+			}
 
-		resign: makeReducer(moveTypeCodecs.resign)<Match>((state, move) => state),
+			return state;
+		}),
 
 		timeout: makeReducer(TimeoutCodec)<Match>((state, { winner }) => ({
 			...state,

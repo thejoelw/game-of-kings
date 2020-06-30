@@ -1,4 +1,4 @@
-import { Variant, Piece, makeBoard } from '.';
+import { Variant, Piece, getBoard } from '.';
 
 export class InvalidVariantException extends Error {
 	constructor() {
@@ -80,7 +80,7 @@ export const isVariantValid = (variant: Variant) => {
 };
 
 export const makeCells = (variant: Variant) =>
-	makeBoard(variant).map(
+	getBoard(variant).map(
 		(cell) =>
 			formations[variant.formation](variant)[`${cell.q},${cell.r},${cell.s}`] ||
 			null,

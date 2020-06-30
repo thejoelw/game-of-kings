@@ -57,29 +57,36 @@ export const PieceCodec = t.strict({
 	playerIndex: t.number,
 	type: t.keyof({ king: null, pawn: null }),
 });
-export const MoveCodec = t.strict({
-	date: t.number,
-	type: t.keyof({
-		movePiece: null,
-		spawnPiece: null,
-		offerDraw: null,
-		resign: null,
-	}),
+
+export const MovePieceMoveCodec = t.strict({
+	type: t.literal('movePiece'),
+	fromIndex: t.number,
+	toIndex: t.number,
 });
-export const moveTypeCodecs = {
-	movePiece: t.strict({
-		...MoveCodec.type.props,
-		fromIndex: t.number,
-		toIndex: t.number,
+export const SpawnPieceMoveCodec = t.strict({
+	type: t.literal('spawnPiece'),
+	fromIndex: t.number,
+	toIndex: t.number,
+});
+export const PassMoveCodec = t.strict({
+	type: t.literal('pass'),
+});
+export const ResignMoveCodec = t.strict({
+	type: t.literal('resign'),
+});
+export const MoveCodec = t.union([
+	MovePieceMoveCodec,
+	SpawnPieceMoveCodec,
+	PassMoveCodec,
+	ResignMoveCodec,
+]);
+export const DoMoveCodec = t.intersection([
+	t.strict({
+		date: t.number,
 	}),
-	spawnPiece: t.strict({
-		...MoveCodec.type.props,
-		fromIndex: t.number,
-		toIndex: t.number,
-	}),
-	offerDraw: t.strict({ ...MoveCodec.type.props }),
-	resign: t.strict({ ...MoveCodec.type.props }),
-};
+	MoveCodec,
+]);
+
 export const TimeoutCodec = t.strict({
 	winner: t.number,
 });
@@ -90,7 +97,7 @@ export const ChatCodec = t.strict({
 });
 export const MatchCodec = t.strict({
 	variant: VariantCodec,
-	log: t.array(MoveCodec),
+	log: t.array(DoMoveCodec),
 	players: t.array(
 		t.strict({
 			userId: t.string,

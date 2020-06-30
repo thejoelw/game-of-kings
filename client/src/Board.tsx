@@ -3,8 +3,8 @@ import chroma from 'chroma-js';
 
 import {
 	hexFactory,
-	enumerateMoves,
-	makeBoard,
+	enumerateLegalMoves,
+	getBoard,
 	Match,
 } from 'game-of-kings-common';
 
@@ -27,7 +27,7 @@ const cellScale = 1;
 const colors = ['#4771b2', '#cf3759'];
 
 const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
-	const board = makeBoard(match.variant);
+	const board = getBoard(match.variant);
 
 	const [selectedCellIndex, selectCellIndex] = React.useState<
 		number | 'spawn' | undefined
@@ -68,15 +68,7 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 	}, []);
 
 	const validMoves =
-		match.status === 'playing'
-			? enumerateMoves(
-					match.variant,
-					match.players,
-					match.playerToMove,
-					match.cells,
-					true,
-			  )
-			: [];
+		match.status === 'playing' ? enumerateLegalMoves(match) : [];
 
 	const size = Math.sqrt(match.cells.length) * 1.1;
 

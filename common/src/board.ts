@@ -20,7 +20,7 @@ export const hexFactory = Honeycomb.extendHex({
 	orientation: 'pointy', // 'flat' or 'pointy'
 });
 
-export const makeBoard = (variant: Variant): Board => {
+const makeBoard = (variant: Variant): Board => {
 	const cells = Honeycomb.defineGrid(hexFactory)
 		.hexagon({
 			radius: variant.radius,
@@ -42,3 +42,12 @@ export const makeBoard = (variant: Variant): Board => {
 
 	return [...cells];
 };
+
+const boardCache = new WeakMap<Variant, Board>();
+export const getBoard = (variant: Variant): Board =>
+	boardCache.get(variant) ||
+	(() => {
+		const board = makeBoard(variant);
+		boardCache.set(variant, board);
+		return board;
+	})();
