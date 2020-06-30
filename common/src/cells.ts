@@ -15,6 +15,7 @@ const assert = (cond: boolean) => {
 };
 
 const formations = {
+	tutorial: (variant: Variant) => ({}),
 	monarchy: (variant: Variant) =>
 		assert(variant.radius >= 2) && {
 			'1,-2,1': { playerIndex: 0, type: 'king' },

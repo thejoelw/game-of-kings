@@ -42,9 +42,11 @@ onModuleUpdate('lobby', LobbyModule, (lobby) => {
       challengerId: userId,
       variant: {
         radius: 5,
+        formation: 'tutorial',
         spawnsAvailable: 12,
         timeInitialMs: 5 * 60 * 1000,
         timeIncrementMs: 8 * 1000,
+        stakes: 0,
       },
     });
   }

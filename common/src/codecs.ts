@@ -20,6 +20,7 @@ export const UserCodec = t.strict({
 export const VariantCodec = t.strict({
 	radius: t.number,
 	formation: t.keyof({
+		tutorial: null,
 		monarchy: null,
 		diarchy: null,
 		triarchy: null,
