@@ -19,9 +19,16 @@ export const UserCodec = t.strict({
 
 export const VariantCodec = t.strict({
 	radius: t.number,
+	formation: t.keyof({
+		monarchy: null,
+		diarchy: null,
+		triarchy: null,
+		colonies: null,
+	}),
 	spawnsAvailable: t.number,
 	timeInitialMs: t.number,
 	timeIncrementMs: t.number,
+	stakes: t.number,
 });
 
 export const ChallengeCodec = t.strict({

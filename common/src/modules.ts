@@ -168,12 +168,20 @@ export const MatchModule = {
 					),
 					status:
 						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king'
+						state.cells[move.toIndex]!.type === 'king' &&
+						state.cells.filter(
+							(c) =>
+								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
+						).length === 1
 							? 'checkmate'
 							: state.status,
 					winner:
 						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king'
+						state.cells[move.toIndex]!.type === 'king' &&
+						state.cells.filter(
+							(c) =>
+								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
+						).length === 1
 							? state.playerToMove
 							: state.winner,
 				},
@@ -197,12 +205,20 @@ export const MatchModule = {
 					),
 					status:
 						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king'
+						state.cells[move.toIndex]!.type === 'king' &&
+						state.cells.filter(
+							(c) =>
+								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
+						).length === 1
 							? 'checkmate'
 							: state.status,
 					winner:
 						state.cells[move.toIndex] &&
-						state.cells[move.toIndex]!.type === 'king'
+						state.cells[move.toIndex]!.type === 'king' &&
+						state.cells.filter(
+							(c) =>
+								c && c.type === 'king' && c.playerIndex !== state.playerToMove,
+						).length === 1
 							? state.playerToMove
 							: state.winner,
 				},

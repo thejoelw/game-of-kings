@@ -26,3 +26,12 @@ code {
 .ui.progress .bar {
 	min-width: 0;
 }
+
+.challenge {
+	transition: background-color 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+	padding: 4px 8px;
+	cursor: pointer;
+}
+.challenge:hover {
+	background-color: #cf375940;
+}
