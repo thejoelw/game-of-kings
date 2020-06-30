@@ -10,7 +10,7 @@ import {
 
 import { User } from './codecs';
 import { CountdownTimer, PausedTimer } from './Timer';
-import HexPoly, { setHexPolyTransform } from './HexPoly';
+import HexPoly, { hexStaticBlock, setHexPolyTransform } from './HexPoly';
 import UserBadge from './UserBadge';
 import { send } from './socket';
 import { userId } from './user';
@@ -34,7 +34,7 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 	>();
 	const moveDstRef = React.useRef<number>();
 
-	const selectedPolyRef = React.useRef<SVGPolygonElement>(null);
+	const selectedPolyRef = React.useRef<SVGGElement>(null);
 
 	React.useEffect(() => {
 		const cb = (event: MouseEvent) => {
@@ -100,6 +100,8 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 				xmlnsXlink="http://www.w3.org/1999/xlink"
 				style={{ flex: '1', overflow: 'visible', zIndex: 10 }}
 			>
+				{hexStaticBlock()}
+
 				{match.cells.map((cell, index) => {
 					const move =
 						selectedCellIndex === 'spawn'
@@ -169,9 +171,6 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 						);
 
 						let color = chroma(colors[cell.playerIndex]);
-						if (cell.type === 'king') {
-							color = chroma.scale([color, 'white'])(0.5);
-						}
 						if (move) {
 							color = color.darken();
 						}
@@ -209,6 +208,7 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 											? { cursor: 'grab' }
 											: undefined
 									}
+									content={cell.type === 'king' ? '♔' : undefined}
 								/>
 							),
 						};
