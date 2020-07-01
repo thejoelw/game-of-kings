@@ -47,10 +47,20 @@ const cb = (req: http.IncomingMessage, res: http.ServerResponse) => {
 		.resume();
 };
 
-const server = parseInt(getEnvVar('USE_HTTPS'))
+const useHttps = parseInt(getEnvVar('USE_HTTPS'));
+const server = useHttps
 	? https.createServer(getCreds(), cb)
 	: http.createServer(cb);
 
+if (useHttps) {
+	http
+		.createServer((req, res) => {
+			res.writeHead(301, { Location: 'https://' + req.headers.host + req.url });
+			res.end();
+		})
+		.listen(getEnvVar('HTTP_PORT'));
+}
+
 export const io = socketIO(server);
 
-server.listen(getEnvVar('PORT'));
+server.listen(getEnvVar(useHttps ? 'HTTPS_PORT' : 'HTTP_PORT'));
