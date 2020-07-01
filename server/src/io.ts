@@ -12,9 +12,7 @@ const getEnvVar = (key: string) => {
 	return val;
 };
 
-const protocol = parseInt(getEnvVar('USE_HTTPS')) ? https : http;
-
-const credentials = protocol === https && {
+const getCreds = () => ({
 	key: fs.readFileSync(
 		'/etc/letsencrypt/live/gameofkings.io/privkey.pem',
 		'utf8',
@@ -24,11 +22,10 @@ const credentials = protocol === https && {
 		'utf8',
 	),
 	ca: fs.readFileSync('/etc/letsencrypt/live/gameofkings.io/chain.pem', 'utf8'),
-};
+});
 
 const fileServer = new libstatic.Server('../client/build');
-
-const server = protocol.createServer((req, res) => {
+const cb = (req: http.IncomingMessage, res: http.ServerResponse) => {
 	if (
 		!['localhost:3000', 'localhost:3001', 'gameofkings.io'].includes(
 			req.headers.host || '',
@@ -48,7 +45,11 @@ const server = protocol.createServer((req, res) => {
 			}),
 		)
 		.resume();
-});
+};
+
+const server = parseInt(getEnvVar('USE_HTTPS'))
+	? https.createServer(getCreds(), cb)
+	: http.createServer(cb);
 
 export const io = socketIO(server);
 
