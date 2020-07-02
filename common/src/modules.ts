@@ -1,4 +1,5 @@
 import * as t from 'io-ts';
+import glicko from 'glicko2-lite';
 
 import {
 	makeDecoder,
@@ -8,10 +9,12 @@ import {
 	AcceptChallengeCodec,
 	UserCodec,
 	User,
+	MatchResultCodec,
 	MatchCodec,
 	Match,
 	MatchPartialCodec,
 	DoMoveCodec,
+	AbortCodec,
 	TimeoutCodec,
 	ChatCodec,
 	reduceMove,
@@ -48,6 +51,8 @@ export const LobbyModule = {
 		users: [],
 		challenges: [],
 	} as LobbyState,
+
+	makePublicResetAction: (lobbyState: LobbyState) => lobbyState,
 
 	reducers: {
 		reset: makeReducer(LobbyStateCodec)<LobbyState>(
@@ -96,8 +101,10 @@ export const LobbyModule = {
 export const UserModule = {
 	initialState: {
 		username: 'guest',
-		rating: 1500,
+		rating: { mean: 1500, std: 350, volatility: 0.06 },
 	} as User,
+
+	makePublicResetAction: ({ username, rating }: User) => ({ username, rating }),
 
 	reducers: {
 		reset: makeReducer(UserCodec)<User>((state, newState) => newState),
@@ -108,11 +115,39 @@ export const UserModule = {
 				...updates,
 			}),
 		),
+
+		matchResult: makeReducer(MatchResultCodec)<User>((state, result) => {
+			if (result.stakes === 0) {
+				return state;
+			}
+
+			const res = glicko(
+				state.rating.mean,
+				state.rating.std,
+				state.rating.volatility,
+				new Array(result.stakes).fill([
+					result.opponentRating.mean,
+					result.opponentRating.std,
+					result.result,
+				]),
+			);
+
+			return {
+				...state,
+				rating: {
+					mean: res.rating,
+					std: res.rd,
+					volatility: res.vol,
+				},
+			};
+		}),
 	},
 };
 
 export const MatchModule = {
 	initialState: UNINITIALIZED as Match,
+
+	makePublicResetAction: (match: Match) => match,
 
 	reducers: {
 		reset: makeReducer(MatchCodec)<Match>((state, newState) => newState),
@@ -143,17 +178,20 @@ export const MatchModule = {
 			state = {
 				...state,
 				log: state.log.concat([move]),
-				players: state.players.map((p, i) =>
-					i === state.playerToMove
-						? {
-								...p,
-								timeForMoveMs:
-									p.timeForMoveMs -
-									(move.date - state.moveStartDate) +
-									state.variant.timeIncrementMs,
-						  }
-						: p,
-				),
+				players:
+					state.log.length < 2
+						? state.players
+						: state.players.map((p, i) =>
+								i === state.playerToMove
+									? {
+											...p,
+											timeForMoveMs:
+												p.timeForMoveMs -
+												(move.date - state.moveStartDate) +
+												state.variant.timeIncrementMs,
+									  }
+									: p,
+						  ),
 				moveStartDate: move.date,
 			};
 
@@ -169,6 +207,11 @@ export const MatchModule = {
 
 			return state;
 		}),
+
+		abort: makeReducer(AbortCodec)<Match>((state, {}) => ({
+			...state,
+			status: 'aborted',
+		})),
 
 		timeout: makeReducer(TimeoutCodec)<Match>((state, { winner }) => ({
 			...state,

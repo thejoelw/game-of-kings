@@ -4,7 +4,9 @@ import {
 	SubMsgCodec,
 	UnsubMsgCodec,
 	AuthCodec,
+	RatingCodec,
 	UserCodec,
+	MatchResultCodec,
 	VariantCodec,
 	ChallengeCodec,
 	LobbyStateCodec,
@@ -16,6 +18,7 @@ import {
 	ResignMoveCodec,
 	MoveCodec,
 	DoMoveCodec,
+	AbortCodec,
 	TimeoutCodec,
 	ChatCodec,
 	MatchCodec,
@@ -24,7 +27,9 @@ import {
 export type SubMsg = t.TypeOf<typeof SubMsgCodec>;
 export type UnsubMsg = t.TypeOf<typeof UnsubMsgCodec>;
 export type Auth = t.TypeOf<typeof AuthCodec>;
+export type Rating = t.TypeOf<typeof RatingCodec>;
 export type User = t.TypeOf<typeof UserCodec>;
+export type MatchResult = t.TypeOf<typeof MatchResultCodec>;
 export type Variant = t.TypeOf<typeof VariantCodec>;
 export type Challenge = t.TypeOf<typeof ChallengeCodec>;
 export type LobbyState = t.TypeOf<typeof LobbyStateCodec>;
@@ -36,6 +41,7 @@ export type PassMove = t.TypeOf<typeof PassMoveCodec>;
 export type ResignMove = t.TypeOf<typeof ResignMoveCodec>;
 export type Move = t.TypeOf<typeof MoveCodec>;
 export type DoMove = t.TypeOf<typeof DoMoveCodec>;
+export type Abort = t.TypeOf<typeof AbortCodec>;
 export type Timeout = t.TypeOf<typeof TimeoutCodec>;
 export type Chat = t.TypeOf<typeof ChatCodec>;
 export type Match = t.TypeOf<typeof MatchCodec>;

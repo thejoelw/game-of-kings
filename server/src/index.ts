@@ -9,10 +9,15 @@ import {
 	makeDecoder,
 	MoveCodec,
 	enumerateLegalMoves,
+	ABORT_TIMEOUT,
 } from 'game-of-kings-common';
 
 import { tutorialUserId } from './auth';
-import { createModuleInstance, getModuleInstance } from './modules';
+import {
+	createModuleInstance,
+	getModuleInstance,
+	ModuleInstance,
+} from './modules';
 import { io } from './io';
 
 const shuffleInPlace = <T>(arr: T[]) => {
@@ -65,7 +70,7 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 			}));
 
 			const match = await createModuleInstance(`match-${matchId}`, MatchModule);
-			match.actors.reset({
+			await match.actors.reset({
 				variant: challenge.variant,
 				log: [],
 				players:
@@ -80,11 +85,13 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 				winner: undefined,
 			});
 
-			lobby.actors.acceptChallenge({
+			await lobby.actors.acceptChallenge({
 				...data,
 				acceptDate: Date.now(),
 				matchId,
 			});
+
+			await preMove(matchId, match);
 		});
 
 		socket.on('match-do-move', async (data: any) => {
@@ -92,9 +99,6 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 			const { type, matchId } = moveDecoder(data);
 
 			const match = await getModuleInstance(`match-${matchId}`, MatchModule);
-			if (!match) {
-				throw new Error(`Invalid matchId: ${matchId}`);
-			}
 
 			{
 				const { players, playerToMove, status } = match.getState();
@@ -123,21 +127,78 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 				matchTimeouts.delete(matchId);
 			}
 
-			match.actors.doMove(data);
+			await match.actors.doMove(data);
 
-			{
-				const { players, playerToMove, moveStartDate } = match.getState();
+			await preMove(matchId, match);
+		});
 
-				if (playerToMove !== undefined) {
-					const timeout = setTimeout(() => {
+		const preMove = async (
+			matchId: string,
+			match: ModuleInstance<
+				(typeof MatchModule)['initialState'],
+				(typeof MatchModule)['reducers']
+			>,
+		) => {
+			const endMatch = async () => {
+				const {
+					variant: { stakes },
+					players,
+					status,
+					winner,
+				} = match.getState();
+
+				if (['drawn', 'checkmate', 'timeout'].includes(status)) {
+					const users = await Promise.all(
+						players.map(({ userId }) =>
+							getModuleInstance(`user-${userId}`, UserModule),
+						),
+					);
+					const ratings = users.map((u) => u.getState().rating);
+
+					await users[0].actors.matchResult({
+						opponentRating: ratings[1],
+						result: winner === undefined ? 0.5 : 1 - winner,
+						stakes,
+					});
+
+					await users[1].actors.matchResult({
+						opponentRating: ratings[0],
+						result: winner === undefined ? 0.5 : winner,
+						stakes,
+					});
+				}
+			};
+
+			const {
+				players,
+				playerToMove,
+				log,
+				moveStartDate,
+				status,
+			} = match.getState();
+
+			if (status === 'playing') {
+				if (log.length < 2) {
+					const timeout = setTimeout(async () => {
 						matchTimeouts.delete(matchId);
-						match.actors.timeout({ winner: 1 - playerToMove });
+						await match.actors.abort({});
+						await endMatch();
+					}, moveStartDate + ABORT_TIMEOUT - Date.now());
+
+					matchTimeouts.set(matchId, timeout);
+				} else {
+					const timeout = setTimeout(async () => {
+						matchTimeouts.delete(matchId);
+						await match.actors.timeout({ winner: 1 - playerToMove });
+						await endMatch();
 					}, moveStartDate + players[playerToMove].timeForMoveMs - Date.now());
 
 					matchTimeouts.set(matchId, timeout);
 				}
+			} else {
+				await endMatch();
 			}
-		});
+		};
 
 		if (userId === tutorialUserId) {
 			socket.on('match-chat', async (data: any) => {
@@ -147,11 +208,8 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 					`match-${data.matchId}`,
 					MatchModule,
 				);
-				if (!match) {
-					throw new Error(`Invalid matchId: ${data.matchId}`);
-				}
 
-				match.actors.chat(data);
+				await match.actors.chat(data);
 			});
 
 			socket.on('match-reset-partial', async (data: any) => {
@@ -159,11 +217,8 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 					`match-${data.matchId}`,
 					MatchModule,
 				);
-				if (!match) {
-					throw new Error(`Invalid matchId: ${data.matchId}`);
-				}
 
-				match.actors.resetPartial(data);
+				await match.actors.resetPartial(data);
 			});
 		}
 	});

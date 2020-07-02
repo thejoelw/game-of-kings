@@ -8,6 +8,7 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "fp-ts": "^2.6.6",
+    "glicko2-lite": "^1.0.1",
     "honeycomb-grid": "^3.1.7",
     "io-ts": "^2.2.6"
   },

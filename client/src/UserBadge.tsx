@@ -8,7 +8,11 @@ const UserBadge = ({ userId }: { userId: string }) => {
 	const { username, rating } = useModule(`user-${userId}`, UserModule);
 	return (
 		<>
-			{username} ({rating})
+			{username} (
+			<span title={`${Math.round(rating.mean)} ±${Math.round(rating.std)}`}>
+				{Math.round(rating.mean)}
+			</span>
+			)
 		</>
 	);
 };

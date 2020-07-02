@@ -1,18 +1,24 @@
 import React from 'react';
 import { Segment, Progress } from 'semantic-ui-react';
 
+export interface RendererProps {
+  remainingTimeMs: number;
+  totalTimeMs: number;
+  minutes: number;
+  seconds: number;
+  flicker: number;
+}
+
 export const Timer = ({
   remainingTimeMs,
   totalTimeMs,
   onUpdate,
-  active,
-  attachPosition,
+  renderer,
 }: {
   remainingTimeMs: number;
   totalTimeMs: number;
   onUpdate: () => void;
-  active: boolean;
-  attachPosition: 'top' | 'bottom';
+  renderer: (props: RendererProps) => JSX.Element;
 }) => {
   if (remainingTimeMs < 0) {
     remainingTimeMs = 0;
@@ -34,35 +40,17 @@ export const Timer = ({
     return () => clearTimeout(timer);
   });
 
-  return (
-    <Segment
-      style={{
-        padding: '0.6em',
-        fontSize: '20px',
-        fontFamily:
-          "source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace",
-        backgroundColor: active ? '#d0e0bd' : 'white',
-      }}
-    >
-      <Progress
-        percent={(remainingTimeMs / totalTimeMs) * 100}
-        attached={attachPosition}
-      />
-      {minutes.toString().padStart(2, '0')}
-      <span style={{ color: flicker ? 'gray' : 'silver' }}>:</span>
-      {seconds.toString().padStart(2, '0')}
-    </Segment>
-  );
+  return renderer({ remainingTimeMs, totalTimeMs, minutes, seconds, flicker });
 };
 
 export const CountdownTimer = ({
   endTime,
   totalTimeMs,
-  attachPosition,
+  renderer,
 }: {
   endTime: number;
   totalTimeMs: number;
-  attachPosition: 'top' | 'bottom';
+  renderer: (props: RendererProps) => JSX.Element;
 }) => {
   const [lastRenderTime, setLastRenderTime] = React.useState(Date.now());
 
@@ -71,8 +59,7 @@ export const CountdownTimer = ({
       remainingTimeMs={endTime - lastRenderTime}
       totalTimeMs={totalTimeMs}
       onUpdate={() => setLastRenderTime(Date.now())}
-      active={true}
-      attachPosition={attachPosition}
+      renderer={renderer}
     />
   );
 };
@@ -80,17 +67,16 @@ export const CountdownTimer = ({
 export const PausedTimer = ({
   remainingTimeMs,
   totalTimeMs,
-  attachPosition,
+  renderer,
 }: {
   remainingTimeMs: number;
   totalTimeMs: number;
-  attachPosition: 'top' | 'bottom';
+  renderer: (props: RendererProps) => JSX.Element;
 }) => (
   <Timer
     remainingTimeMs={remainingTimeMs}
     totalTimeMs={totalTimeMs}
     onUpdate={() => undefined}
-    active={false}
-    attachPosition={attachPosition}
+    renderer={renderer}
   />
 );

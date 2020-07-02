@@ -9,7 +9,9 @@ import {
 } from 'game-of-kings-common';
 
 import { User } from './codecs';
-import { CountdownTimer, PausedTimer } from './Timer';
+import MatchTimer from './MatchTimer';
+import AbortTimer from './AbortTimer';
+import PieceSpawner from './PieceSpawner';
 import HexPoly, { hexStaticBlock, setHexPolyTransform } from './HexPoly';
 import UserBadge from './UserBadge';
 import { send } from './socket';
@@ -67,15 +69,17 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 		return () => window.removeEventListener('mousemove', cb);
 	}, []);
 
-	const validMoves =
-		match.status === 'playing' ? enumerateLegalMoves(match) : [];
-
-	const size = Math.sqrt(match.cells.length) * 1.1;
-
 	const selfPlayerIndex = match.players.findIndex((p) => p.userId === userId);
 	if (selfPlayerIndex === -1) {
 		throw new Error(`Cannot find self player!`);
 	}
+
+	const validMoves =
+		match.status === 'playing' && match.playerToMove === selfPlayerIndex
+			? enumerateLegalMoves(match)
+			: [];
+
+	const size = Math.sqrt(match.cells.length) * 1.1;
 
 	return (
 		<div
@@ -187,7 +191,6 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 									scale={index === selectedCellIndex ? 0.8 : 1}
 									onMouseDown={
 										selectedCellIndex === undefined &&
-										match.playerToMove === selfPlayerIndex &&
 										cell.playerIndex === selfPlayerIndex
 											? (e) => {
 													e.preventDefault();
@@ -344,68 +347,17 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 								: '#EEEEEE',
 					}}
 				>
-					{match.playerToMove === 0 ? (
-						<CountdownTimer
-							endTime={match.moveStartDate + match.players[0].timeForMoveMs}
-							totalTimeMs={match.variant.timeInitialMs}
-							attachPosition="bottom"
-						/>
-					) : (
-						<PausedTimer
-							remainingTimeMs={match.players[0].timeForMoveMs}
-							totalTimeMs={match.variant.timeInitialMs}
-							attachPosition="bottom"
-						/>
-					)}
-
-					<div
-						style={{
-							flex: '1',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-						}}
-					>
-						<svg
-							viewBox="-1.1 -1.1 2.2 2.2"
-							xmlns="http://www.w3.org/2000/svg"
-							xmlnsXlink="http://www.w3.org/1999/xlink"
-							style={{
-								width: 50,
-								height: 50,
-							}}
-						>
-							<HexPoly
-								cell={{ x: 0, y: 0 }}
-								fill={colors[0]}
-								scale={1}
-								onMouseDown={
-									selectedCellIndex === undefined &&
-									match.playerToMove === 0 &&
-									selfPlayerIndex === 0 &&
-									match.players[0].spawnsAvailable > 0
-										? (e) => {
-												e.preventDefault();
-												selectCellIndex('spawn');
-										  }
-										: undefined
-								}
-								style={
-									selfPlayerIndex === 0 && match.players[0].spawnsAvailable > 0
-										? { cursor: 'grab' }
-										: {}
-								}
-							/>
-						</svg>
-						<span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-							x{match.players[0].spawnsAvailable}
-						</span>
-					</div>
+					<MatchTimer match={match} playerIndex={0} />
+					<AbortTimer match={match} playerIndex={0} />
+					<PieceSpawner
+						match={match}
+						playerIndex={0}
+						onMouseDown={() => selectCellIndex('spawn')}
+					/>
 
 					<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
 						<UserBadge userId={match.players[0].userId} />
 					</div>
-
 					<div style={{ display: 'flex', alignItems: 'center' }}>
 						<hr
 							style={{
@@ -427,68 +379,17 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 							}}
 						/>
 					</div>
-
 					<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
 						<UserBadge userId={match.players[1].userId} />
 					</div>
 
-					<div
-						style={{
-							flex: '1',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-						}}
-					>
-						<svg
-							viewBox="-1.1 -1.1 2.2 2.2"
-							xmlns="http://www.w3.org/2000/svg"
-							xmlnsXlink="http://www.w3.org/1999/xlink"
-							style={{
-								width: 50,
-								height: 50,
-							}}
-						>
-							<HexPoly
-								cell={{ x: 0, y: 0 }}
-								fill={colors[1]}
-								scale={1}
-								onMouseDown={
-									selectedCellIndex === undefined &&
-									match.playerToMove === 1 &&
-									selfPlayerIndex === 1 &&
-									match.players[1].spawnsAvailable > 0
-										? (e) => {
-												e.preventDefault();
-												selectCellIndex('spawn');
-										  }
-										: undefined
-								}
-								style={
-									selfPlayerIndex === 1 && match.players[1].spawnsAvailable > 0
-										? { cursor: 'grab' }
-										: {}
-								}
-							/>
-						</svg>
-						<span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-							x{match.players[1].spawnsAvailable}
-						</span>
-					</div>
-
-					{match.playerToMove === 1 ? (
-						<CountdownTimer
-							endTime={match.moveStartDate + match.players[1].timeForMoveMs}
-							totalTimeMs={match.variant.timeInitialMs}
-							attachPosition="top"
-						/>
-					) : (
-						<PausedTimer
-							remainingTimeMs={match.players[1].timeForMoveMs}
-							totalTimeMs={match.variant.timeInitialMs}
-							attachPosition="top"
-						/>
-					)}
+					<PieceSpawner
+						match={match}
+						playerIndex={1}
+						onMouseDown={() => selectCellIndex('spawn')}
+					/>
+					<AbortTimer match={match} playerIndex={1} />
+					<MatchTimer match={match} playerIndex={1} />
 				</div>
 			</div>
 		</div>

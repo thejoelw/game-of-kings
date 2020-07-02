@@ -38,10 +38,15 @@ export const getModuleInstance = async <
 		initialState: StateType;
 		reducers: ReducersType;
 	},
-): Promise<ModuleInstance<StateType, ReducersType> | undefined> => {
-	return moduleInstances.get(name) as (
-		| ModuleInstance<StateType, ReducersType>
-		| undefined);
+): Promise<ModuleInstance<StateType, ReducersType>> => {
+	if (moduleInstances.has(name)) {
+		return moduleInstances.get(name) as (ModuleInstance<
+			StateType,
+			ReducersType
+		>);
+	} else {
+		throw new Error(`Module ${name} does not exist`);
+	}
 };
 
 export const createModuleInstance = async <
@@ -69,7 +74,7 @@ export const createModuleInstance = async <
 	const actors: Record<string, (action: any) => void> = {};
 
 	Object.entries(defn.reducers).forEach(([k, reducer]) => {
-		actors[k] = (action: any) => {
+		actors[k] = async (action: any) => {
 			state = reducer(state, action);
 			io.to(name).emit(`${name}-${k}`, action);
 		};
@@ -111,16 +116,8 @@ io.on('connection', (socket) => {
 			reducers: {},
 		});
 
-		// console.log(
-		// 	'sub',
-		// 	socket.id,
-		// 	name,
-		// 	!!inst,
-		// 	!socket.rooms.hasOwnProperty(name),
-		// );
-
 		roomPromise = roomPromise.then(() => {
-			if (inst && !socket.rooms.hasOwnProperty(name)) {
+			if (!socket.rooms.hasOwnProperty(name)) {
 				return new Promise((resolve) =>
 					socket.join(name, () => {
 						inst.join(userId);
@@ -143,7 +140,7 @@ io.on('connection', (socket) => {
 		});
 
 		roomPromise = roomPromise.then(() => {
-			if (inst && socket.rooms.hasOwnProperty(name)) {
+			if (socket.rooms.hasOwnProperty(name)) {
 				return new Promise((resolve) =>
 					socket.leave(name, () => {
 						inst.leave(userId);
@@ -162,9 +159,7 @@ io.on('connection', (socket) => {
 				reducers: {},
 			});
 
-			if (inst) {
-				inst.leave(userId);
-			}
+			inst.leave(userId);
 		});
 	});
 });

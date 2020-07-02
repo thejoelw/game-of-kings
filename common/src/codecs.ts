@@ -5,6 +5,13 @@ const opt = <InnerType extends t.Any>(type: InnerType) =>
 const orNull = <InnerType extends t.Any>(type: InnerType) =>
 	t.union([type, t.null]);
 
+const NonNegIntCodec = t.brand(
+	t.number,
+	(n): n is t.Branded<number, { readonly NonNegInt: symbol }> =>
+		n >= 0 && Number.isInteger(n),
+	'NonNegInt',
+);
+
 export const SubMsgCodec = t.string;
 export const UnsubMsgCodec = t.string;
 
@@ -12,13 +19,23 @@ export const AuthCodec = t.strict({
 	token: t.string,
 });
 
+export const RatingCodec = t.strict({
+	mean: t.number,
+	std: t.number,
+	volatility: t.number,
+});
 export const UserCodec = t.strict({
 	username: t.string,
-	rating: t.number,
+	rating: RatingCodec,
+});
+export const MatchResultCodec = t.strict({
+	opponentRating: RatingCodec,
+	result: t.number,
+	stakes: NonNegIntCodec,
 });
 
 export const VariantCodec = t.strict({
-	radius: t.number,
+	radius: NonNegIntCodec,
 	formation: t.keyof({
 		tutorial: null,
 		monarchy: null,
@@ -26,10 +43,10 @@ export const VariantCodec = t.strict({
 		triarchy: null,
 		colonies: null,
 	}),
-	spawnsAvailable: t.number,
-	timeInitialMs: t.number,
-	timeIncrementMs: t.number,
-	stakes: t.number,
+	spawnsAvailable: NonNegIntCodec,
+	timeInitialMs: NonNegIntCodec,
+	timeIncrementMs: NonNegIntCodec,
+	stakes: NonNegIntCodec,
 });
 
 export const ChallengeCodec = t.strict({
@@ -87,6 +104,7 @@ export const DoMoveCodec = t.intersection([
 	MoveCodec,
 ]);
 
+export const AbortCodec = t.strict({});
 export const TimeoutCodec = t.strict({
 	winner: t.number,
 });

@@ -3,6 +3,7 @@ export * from './cells';
 export * from './client';
 export * from './codecs';
 export * from './coder';
-export * from './enumerateMoves';
+export * from './constants';
+export * from './moves';
 export * from './modules';
 export * from './types';
