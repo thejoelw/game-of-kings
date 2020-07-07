@@ -174,25 +174,35 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 			>
 				{hexStaticBlock()}
 
-				<filter
-					id="hex-glow"
-					x="-0.43301270189"
-					y="-0.5"
-					width="1.73205080757"
-					height="2"
-				>
-					<feFlood
-						floodColor={chroma(colors[1 - view.playerToMove])
-							.brighten()
-							.hex()}
-					/>
-					<feComposite in2="SourceGraphic" operator="out" />
-					<feGaussianBlur stdDeviation="0.1" />
-					<feComponentTransfer>
-						<feFuncA type="linear" slope="2" />
-					</feComponentTransfer>
-					<feComposite operator="in" in2="SourceGraphic" />
-				</filter>
+				{match.variant.formation !== 'tutorial' && (
+					<filter
+						id="hex-glow"
+						x="-0.43301270189"
+						y="-0.5"
+						width="1.73205080757"
+						height="2"
+					>
+						<feFlood
+							floodColor={chroma(
+								colors[
+									lastMove &&
+									(lastMove.type === 'movePiece' ||
+										lastMove.type === 'spawnPiece')
+										? view.cells[lastMove.toIndex]!.playerIndex
+										: 0
+								],
+							)
+								.brighten()
+								.hex()}
+						/>
+						<feComposite in2="SourceGraphic" operator="out" />
+						<feGaussianBlur stdDeviation="0.1" />
+						<feComponentTransfer>
+							<feFuncA type="linear" slope="2" />
+						</feComponentTransfer>
+						<feComposite operator="in" in2="SourceGraphic" />
+					</filter>
+				)}
 
 				{view.cells.map((cell, index) => {
 					const move =
@@ -444,49 +454,51 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 						}
 					/>
 
-					<div
-						style={{
-							display: 'flex',
-							flexDirection: 'column',
-							alignItems: 'center',
-						}}
-					>
-						<em>
-							Move{' '}
-							{moveIndex === Infinity
-								? match.log.length
-								: `${moveIndex}/${match.log.length}`}
-						</em>
+					{match.variant.formation !== 'tutorial' && (
+						<div
+							style={{
+								display: 'flex',
+								flexDirection: 'column',
+								alignItems: 'center',
+							}}
+						>
+							<em>
+								Move{' '}
+								{moveIndex === Infinity
+									? match.log.length
+									: `${moveIndex}/${match.log.length}`}
+							</em>
 
-						<Button.Group fluid>
-							<Button
-								style={{ padding: '0.5em' }}
-								onClick={() => setMoveIndex(0)}
-							>
-								◀◀
-							</Button>
-							<Button
-								style={{ padding: '0.5em' }}
-								onClick={() => incMoveIndex(-1)}
-							>
-								◀
-							</Button>
-							<Button
-								style={{ padding: '0.5em' }}
-								onClick={() => incMoveIndex(+1)}
-							>
-								▶
-							</Button>
-							<Button
-								style={{ padding: '0.5em' }}
-								onClick={() => setMoveIndex(Infinity)}
-							>
-								▶▶
-							</Button>
-						</Button.Group>
+							<Button.Group fluid>
+								<Button
+									style={{ padding: '0.5em' }}
+									onClick={() => setMoveIndex(0)}
+								>
+									◀◀
+								</Button>
+								<Button
+									style={{ padding: '0.5em' }}
+									onClick={() => incMoveIndex(-1)}
+								>
+									◀
+								</Button>
+								<Button
+									style={{ padding: '0.5em' }}
+									onClick={() => incMoveIndex(+1)}
+								>
+									▶
+								</Button>
+								<Button
+									style={{ padding: '0.5em' }}
+									onClick={() => setMoveIndex(Infinity)}
+								>
+									▶▶
+								</Button>
+							</Button.Group>
 
-						<em>&nbsp;</em>
-					</div>
+							<em>&nbsp;</em>
+						</div>
+					)}
 
 					<PieceSpawner
 						match={view}

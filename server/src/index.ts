@@ -140,12 +140,7 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 			>,
 		) => {
 			const endMatch = async () => {
-				const {
-					variant: { stakes },
-					players,
-					status,
-					winner,
-				} = match.getState();
+				const { variant, players, status, winner } = match.getState();
 
 				if (['drawn', 'checkmate', 'timeout'].includes(status)) {
 					const users = await Promise.all(
@@ -158,17 +153,19 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 					await users[0].actors.matchResult({
 						opponentRating: ratings[1],
 						result: winner === undefined ? 0.5 : 1 - winner,
-						stakes,
+						stakes: variant.stakes,
 					});
 
 					await users[1].actors.matchResult({
 						opponentRating: ratings[0],
 						result: winner === undefined ? 0.5 : winner,
-						stakes,
+						stakes: variant.stakes,
 					});
 				}
 
-				await lobby.actors.endMatch(matchId);
+				if (variant.formation !== 'tutorial') {
+					await lobby.actors.endMatch(matchId);
+				}
 			};
 
 			const {

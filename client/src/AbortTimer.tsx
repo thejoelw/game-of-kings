@@ -14,7 +14,7 @@ const AbortTimer = ({
 }) =>
 	match.playerToMove === playerIndex &&
 	match.status === 'playing' &&
-	match.log.length < 2 ? (
+	match.log.length < (match.variant.formation === 'tutorial' ? 1 : 2) ? (
 		<CountdownTimer
 			endTime={match.moveStartDate + ABORT_TIMEOUT}
 			totalTimeMs={ABORT_TIMEOUT}

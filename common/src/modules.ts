@@ -95,7 +95,11 @@ export const LobbyModule = {
 						? { ...c, opponentId: acceptorId, acceptDate, matchId }
 						: c,
 				),
-				liveMatchIds: [matchId, ...state.liveMatchIds],
+				liveMatchIds:
+					state.challenges.find((c) => c.id === challengeId)!.variant
+						.formation === 'tutorial'
+						? state.liveMatchIds
+						: [matchId, ...state.liveMatchIds],
 			}),
 		),
 
