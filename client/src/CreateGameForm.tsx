@@ -17,12 +17,12 @@ const fieldDefns = [
   {
     key: 'formation',
     label: 'Formation',
-    default: 'monarchy',
+    default: 'colonies',
     options: {
+      Colonies: 'colonies',
       Monarchy: 'monarchy',
       Diarchy: 'diarchy',
       Triarchy: 'triarchy',
-      Colonies: 'colonies',
     },
   },
   {

@@ -14,7 +14,7 @@ const PieceSpawner = ({
 }: {
 	match: Match;
 	playerIndex: number;
-	onMouseDown: () => void;
+	onMouseDown?: () => void;
 }) => (
 	<div
 		style={{
@@ -38,7 +38,7 @@ const PieceSpawner = ({
 				fill={colors[playerIndex]}
 				scale={1}
 				onMouseDown={
-					// selectedCellIndex === undefined &&
+					onMouseDown &&
 					match.players[playerIndex].userId === userId &&
 					match.players[0].spawnsAvailable > 0
 						? (e) => {

@@ -17,12 +17,14 @@ const HexPoly = (
   {
     cell,
     scale,
-    content,
+    text,
+    textColor,
     ...extraProps
   }: {
     cell: { x: number; y: number };
     scale: number;
-    content?: string;
+    text?: string;
+    textColor?: string;
   } & React.SVGProps<SVGPolygonElement>,
   ref: React.Ref<SVGGElement>,
 ) => (
@@ -45,7 +47,7 @@ const HexPoly = (
       {...extraProps}
     />
 
-    {content ? (
+    {text ? (
       <text
         x={0}
         y={0}
@@ -55,17 +57,18 @@ const HexPoly = (
           fontSize: '1.8px',
           fontWeight: 'bold',
           pointerEvents: 'none',
-          filter: 'url(#glow)',
+          filter: 'url(#text-glow)',
+          fill: textColor || 'black',
         }}
       >
-        {content}
+        {text}
       </text>
     ) : null}
   </g>
 );
 
 export const hexStaticBlock = () => (
-  <filter id="glow">
+  <filter id="text-glow">
     <feFlood result="flood" floodColor="white" floodOpacity="1"></feFlood>
     <feComposite
       in="flood"

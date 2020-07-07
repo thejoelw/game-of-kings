@@ -3,9 +3,9 @@ import React from 'react';
 import LoginModal from './LoginModal';
 import RegisterModal from './RegisterModal';
 import RenameModal from './RenameModal';
-
 import { userId } from './user';
 import UserBadge from './UserBadge';
+import BowIcon from './bow-icon.png';
 
 export default () => (
   <div
@@ -17,6 +17,12 @@ export default () => (
       display: 'flex',
       alignItems: 'center',
       padding: '16px',
+
+      backgroundImage: `url(${BowIcon})`,
+      backgroundSize: 'auto 80%',
+      backgroundPosition: 'left center',
+      backgroundRepeat: 'no-repeat',
+      paddingLeft: '40px',
     }}
   >
     <h1

@@ -167,6 +167,8 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 						stakes,
 					});
 				}
+
+				await lobby.actors.endMatch(matchId);
 			};
 
 			const {

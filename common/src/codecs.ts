@@ -62,6 +62,8 @@ export const ChallengeCodec = t.strict({
 export const LobbyStateCodec = t.strict({
 	users: t.array(t.string),
 	challenges: t.array(ChallengeCodec),
+	liveMatchIds: t.array(t.string),
+	recentMatchIds: t.array(t.string),
 });
 export const AcceptChallengeCodec = t.strict({
 	challengeId: t.string,

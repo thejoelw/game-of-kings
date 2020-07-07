@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from 'semantic-ui-react';
 import chroma from 'chroma-js';
 
 import {
@@ -6,6 +7,8 @@ import {
 	enumerateLegalMoves,
 	getBoard,
 	Match,
+	Piece,
+	getPriorState,
 } from 'game-of-kings-common';
 
 import { User } from './codecs';
@@ -25,11 +28,21 @@ const corners = hexFactory()
 	}));
 
 const cellScale = 1;
-
 const colors = ['#4771b2', '#cf3759'];
+const transitionHexSnap = false;
 
 const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 	const board = getBoard(match.variant);
+
+	const [moveIndex, setMoveIndex] = React.useState<number>(Infinity);
+	const incMoveIndex = (inc: number) => {
+		const val = (moveIndex === Infinity ? match.log.length : moveIndex) + inc;
+		if (val < match.log.length) {
+			setMoveIndex(Math.max(0, val));
+		} else {
+			setMoveIndex(Infinity);
+		}
+	};
 
 	const [selectedCellIndex, selectCellIndex] = React.useState<
 		number | 'spawn' | undefined
@@ -61,7 +74,6 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 				selectedPolyRef.current.ownerSVGElement!.getScreenCTM()!.inverse(),
 			);
 
-			selectedPolyRef.current!.classList.remove('gok-hex-snap');
 			setHexPolyTransform(selectedPolyRef.current, loc);
 		};
 
@@ -70,16 +82,74 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 	}, []);
 
 	const selfPlayerIndex = match.players.findIndex((p) => p.userId === userId);
-	if (selfPlayerIndex === -1) {
-		throw new Error(`Cannot find self player!`);
-	}
+
+	const view = moveIndex === Infinity ? match : getPriorState(match, moveIndex);
+
+	const curMoves = enumerateLegalMoves(view);
+	const otherMoves = enumerateLegalMoves({
+		...view,
+		playerToMove: 1 - view.playerToMove,
+	});
+	const checkMoves = [...curMoves, ...otherMoves];
 
 	const validMoves =
-		match.status === 'playing' && match.playerToMove === selfPlayerIndex
-			? enumerateLegalMoves(match)
+		view.status === 'playing' && view.playerToMove === selfPlayerIndex
+			? curMoves
 			: [];
 
-	const size = Math.sqrt(match.cells.length) * 1.1;
+	const lastMove = view.log.length && view.log[view.log.length - 1];
+
+	const pieceMapper = (cell: Piece, index: number) => {
+		const move = validMoves.find(
+			(m) =>
+				m.type === 'movePiece' &&
+				m.fromIndex === selectedCellIndex &&
+				m.toIndex === index,
+		);
+
+		let color = chroma(colors[cell.playerIndex]);
+		if (move) {
+			color = color.darken();
+		}
+
+		return (
+			<HexPoly
+				key={index}
+				ref={selectedCellIndex === index ? selectedPolyRef : undefined}
+				cell={
+					board[
+						index === selectedCellIndex && moveDstRef.current !== undefined
+							? moveDstRef.current
+							: index
+					]
+				}
+				fill={color.hex()}
+				scale={index === selectedCellIndex ? 0.8 : 1}
+				onMouseDown={
+					moveIndex === Infinity &&
+					selectedCellIndex === undefined &&
+					cell.playerIndex === selfPlayerIndex
+						? (e) => {
+								e.preventDefault();
+								selectCellIndex(index);
+						  }
+						: undefined
+				}
+				style={
+					cell.playerIndex === selfPlayerIndex ? { cursor: 'grab' } : undefined
+				}
+				text={cell.type === 'king' ? '♔' : undefined}
+				textColor={
+					cell.type === 'king' &&
+					checkMoves.some((m) => m.type === 'movePiece' && m.toIndex === index)
+						? 'purple'
+						: 'black'
+				}
+			/>
+		);
+	};
+
+	const size = Math.sqrt(view.cells.length) * 1.1;
 
 	return (
 		<div
@@ -88,17 +158,43 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 				display: 'flex',
 				flexDirection: 'row',
 				overflow: 'hidden',
+				background: `radial-gradient(#fff, #ccc)`,
+				backgroundPosition: '-100px 0',
 			}}
 		>
 			<svg
 				viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}
 				xmlns="http://www.w3.org/2000/svg"
 				xmlnsXlink="http://www.w3.org/1999/xlink"
-				style={{ flex: '1', overflow: 'visible', zIndex: 10 }}
+				style={{
+					flex: '1',
+					overflow: 'visible',
+					zIndex: 10,
+				}}
 			>
 				{hexStaticBlock()}
 
-				{match.cells.map((cell, index) => {
+				<filter
+					id="hex-glow"
+					x="-0.43301270189"
+					y="-0.5"
+					width="1.73205080757"
+					height="2"
+				>
+					<feFlood
+						floodColor={chroma(colors[1 - view.playerToMove])
+							.brighten()
+							.hex()}
+					/>
+					<feComposite in2="SourceGraphic" operator="out" />
+					<feGaussianBlur stdDeviation="0.1" />
+					<feComponentTransfer>
+						<feFuncA type="linear" slope="2" />
+					</feComponentTransfer>
+					<feComposite operator="in" in2="SourceGraphic" />
+				</filter>
+
+				{view.cells.map((cell, index) => {
 					const move =
 						selectedCellIndex === 'spawn'
 							? validMoves.find(
@@ -136,7 +232,8 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 								move
 									? () => {
 											moveDstRef.current = index;
-											selectedPolyRef.current!.classList.add('gok-hex-snap');
+											transitionHexSnap &&
+												selectedPolyRef.current!.classList.add('gok-hex-snap');
 											setHexPolyTransform(
 												selectedPolyRef.current!,
 												board[moveDstRef.current],
@@ -147,69 +244,44 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 							onMouseOut={() => {
 								if (moveDstRef.current === index) {
 									moveDstRef.current = undefined;
+									transitionHexSnap &&
+										selectedPolyRef.current!.classList.remove('gok-hex-snap');
 								}
 							}}
 						/>
 					);
 				})}
 
-				{match.cells
-					.flatMap((cell, index) => {
-						if (!cell) {
-							return [];
-						}
+				{view.cells.map((cell, index) =>
+					cell && index !== selectedCellIndex
+						? pieceMapper(cell, index)
+						: undefined,
+				)}
 
-						const move = validMoves.find(
-							(m) =>
-								m.type === 'movePiece' &&
-								m.fromIndex === selectedCellIndex &&
-								m.toIndex === index,
-						);
+				{lastMove && lastMove.type === 'movePiece' && (
+					<HexPoly
+						cell={board[lastMove.fromIndex]}
+						fill="white"
+						stroke="none"
+						scale={0.95}
+						filter="url(#hex-glow)"
+					/>
+				)}
 
-						let color = chroma(colors[cell.playerIndex]);
-						if (move) {
-							color = color.darken();
-						}
+				{lastMove &&
+					(lastMove.type === 'movePiece' || lastMove.type === 'spawnPiece') && (
+						<HexPoly
+							cell={board[lastMove.toIndex]}
+							fill="white"
+							stroke="none"
+							scale={0.95}
+							filter="url(#hex-glow)"
+						/>
+					)}
 
-						return {
-							zIndex: index === selectedCellIndex ? 2 : 1,
-							el: (
-								<HexPoly
-									key={index}
-									ref={
-										selectedCellIndex === index ? selectedPolyRef : undefined
-									}
-									cell={
-										board[
-											index === selectedCellIndex &&
-											moveDstRef.current !== undefined
-												? moveDstRef.current
-												: index
-										]
-									}
-									fill={color.hex()}
-									scale={index === selectedCellIndex ? 0.8 : 1}
-									onMouseDown={
-										selectedCellIndex === undefined &&
-										cell.playerIndex === selfPlayerIndex
-											? (e) => {
-													e.preventDefault();
-													selectCellIndex(index);
-											  }
-											: undefined
-									}
-									style={
-										cell.playerIndex === selfPlayerIndex
-											? { cursor: 'grab' }
-											: undefined
-									}
-									content={cell.type === 'king' ? '♔' : undefined}
-								/>
-							),
-						};
-					})
-					.sort((a, b) => a.zIndex - b.zIndex)
-					.map((a) => a.el)}
+				{selectedCellIndex !== undefined &&
+					selectedCellIndex !== 'spawn' &&
+					pieceMapper(view.cells[selectedCellIndex]!, selectedCellIndex)}
 
 				{selectedCellIndex === 'spawn' && (
 					<HexPoly
@@ -220,7 +292,7 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 					/>
 				)}
 
-				{/*match.cells.map((hex, index) => {
+				{/*view.cells.map((hex, index) => {
           const zeros =
             Number(hex.q === 0) + Number(hex.r === 0) + Number(hex.s === 0);
           let text: string | undefined;
@@ -273,6 +345,9 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 							zIndex: 2,
 							padding: '8px',
 							background: '#EEEEEE',
+							borderTopLeftRadius: '4px',
+							borderBottomLeftRadius: '4px',
+							marginBottom: '16px',
 						}}
 					>
 						{{
@@ -317,7 +392,10 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 							zIndex: 2,
 							padding: '8px',
 							background: '#EEEEEE',
+							borderTopLeftRadius: '4px',
+							borderBottomLeftRadius: '4px',
 							overflowY: 'auto',
+							marginBottom: '16px',
 						}}
 					>
 						{match.chat.map((c, index) => (
@@ -331,7 +409,6 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 				<div
 					style={{
 						flex: '1',
-						maxHeight: '400px',
 						boxShadow: '0 0 8px 0 gray',
 						zIndex: 2,
 						padding: '8px',
@@ -345,49 +422,87 @@ const Board = ({ matchId, match }: { matchId: string; match: Match }) => {
 										0.5,
 								  )} 0%, #EEEEEE 50%)`
 								: '#EEEEEE',
+						borderTopLeftRadius: '4px',
+						borderBottomLeftRadius: '4px',
 					}}
 				>
 					<MatchTimer match={match} playerIndex={0} />
 					<AbortTimer match={match} playerIndex={0} />
-					<PieceSpawner
-						match={match}
-						playerIndex={0}
-						onMouseDown={() => selectCellIndex('spawn')}
-					/>
-
-					<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+					<div
+						style={{ textAlign: 'center', fontWeight: 'bold', margin: '8px' }}
+					>
 						<UserBadge userId={match.players[0].userId} />
 					</div>
-					<div style={{ display: 'flex', alignItems: 'center' }}>
-						<hr
-							style={{
-								flex: '1',
-								border: 'none',
-								backgroundColor: 'silver',
-								height: '1px',
-								margin: '16px 8px',
-							}}
-						/>
-						<span style={{ color: 'silver' }}>VS</span>
-						<hr
-							style={{
-								flex: '1',
-								border: 'none',
-								backgroundColor: 'silver',
-								height: '1px',
-								margin: '16px 8px',
-							}}
-						/>
-					</div>
-					<div style={{ textAlign: 'center', fontWeight: 'bold' }}>
-						<UserBadge userId={match.players[1].userId} />
+
+					<PieceSpawner
+						match={view}
+						playerIndex={0}
+						onMouseDown={
+							moveIndex === Infinity
+								? () => selectCellIndex('spawn')
+								: undefined
+						}
+					/>
+
+					<div
+						style={{
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+						}}
+					>
+						<em>
+							Move{' '}
+							{moveIndex === Infinity
+								? match.log.length
+								: `${moveIndex}/${match.log.length}`}
+						</em>
+
+						<Button.Group fluid>
+							<Button
+								style={{ padding: '0.5em' }}
+								onClick={() => setMoveIndex(0)}
+							>
+								◀◀
+							</Button>
+							<Button
+								style={{ padding: '0.5em' }}
+								onClick={() => incMoveIndex(-1)}
+							>
+								◀
+							</Button>
+							<Button
+								style={{ padding: '0.5em' }}
+								onClick={() => incMoveIndex(+1)}
+							>
+								▶
+							</Button>
+							<Button
+								style={{ padding: '0.5em' }}
+								onClick={() => setMoveIndex(Infinity)}
+							>
+								▶▶
+							</Button>
+						</Button.Group>
+
+						<em>&nbsp;</em>
 					</div>
 
 					<PieceSpawner
-						match={match}
+						match={view}
 						playerIndex={1}
-						onMouseDown={() => selectCellIndex('spawn')}
+						onMouseDown={
+							moveIndex === Infinity
+								? () => selectCellIndex('spawn')
+								: undefined
+						}
 					/>
+
+					<div
+						style={{ textAlign: 'center', fontWeight: 'bold', margin: '8px' }}
+					>
+						<UserBadge userId={match.players[1].userId} />
+					</div>
 					<AbortTimer match={match} playerIndex={1} />
 					<MatchTimer match={match} playerIndex={1} />
 				</div>

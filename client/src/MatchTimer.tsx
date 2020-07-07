@@ -24,7 +24,7 @@ const makeTimerRenderer = (
 			fontFamily:
 				"source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace",
 			backgroundColor: active ? '#d0e0bd' : 'white',
-			marginBottom: '0',
+			margin: '0',
 		}}
 	>
 		<Progress

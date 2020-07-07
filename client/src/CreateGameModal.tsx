@@ -8,11 +8,15 @@ export default () => {
 
 	return (
 		<Modal
-			trigger={<Button onClick={() => setOpen(true)}>Create Game</Button>}
+			trigger={
+				<Button primary fluid onClick={() => setOpen(true)}>
+					Create Challenge
+				</Button>
+			}
 			open={isOpen}
 			onClose={() => setOpen(false)}
 		>
-			<Modal.Header>Create a game</Modal.Header>
+			<Modal.Header>Create a challenge</Modal.Header>
 			<Modal.Content>
 				<Modal.Description>
 					<CreateGameForm onClose={() => setOpen(false)} />

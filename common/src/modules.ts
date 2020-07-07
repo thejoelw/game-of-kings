@@ -50,6 +50,8 @@ export const LobbyModule = {
 	initialState: {
 		users: [],
 		challenges: [],
+		liveMatchIds: [],
+		recentMatchIds: [],
 	} as LobbyState,
 
 	makePublicResetAction: (lobbyState: LobbyState) => lobbyState,
@@ -93,8 +95,15 @@ export const LobbyModule = {
 						? { ...c, opponentId: acceptorId, acceptDate, matchId }
 						: c,
 				),
+				liveMatchIds: [matchId, ...state.liveMatchIds],
 			}),
 		),
+
+		endMatch: makeReducer(t.string)<LobbyState>((state, matchId) => ({
+			...state,
+			liveMatchIds: state.liveMatchIds.filter((id) => id !== matchId),
+			recentMatchIds: [matchId, ...state.recentMatchIds].slice(0, 16),
+		})),
 	},
 };
 
