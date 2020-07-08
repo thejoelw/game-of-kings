@@ -178,6 +178,8 @@ export const MatchModule = {
 		),
 
 		doMove: makeReducer(DoMoveCodec)<Match>((state, move) => {
+			const player = state.playerToMove;
+
 			const reduction = reduceMove(state, move);
 			state = {
 				...state,
@@ -195,7 +197,7 @@ export const MatchModule = {
 					state.log.length < 2
 						? state.players
 						: state.players.map((p, i) =>
-								i === state.playerToMove
+								i === player
 									? {
 											...p,
 											timeForMoveMs:
@@ -210,7 +212,7 @@ export const MatchModule = {
 
 			if (isCheckmated(state)) {
 				state.status = 'checkmate';
-				state.winner = 1 - state.playerToMove;
+				state.winner = player;
 			} else if (
 				state.log.length >= 2 &&
 				state.log.slice(-2).every((l) => l.type === 'pass')
