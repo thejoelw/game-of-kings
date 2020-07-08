@@ -40,7 +40,7 @@ const PieceSpawner = ({
 				onMouseDown={
 					onMouseDown &&
 					match.players[playerIndex].userId === userId &&
-					match.players[0].spawnsAvailable > 0
+					match.players[playerIndex].spawnsAvailable > 0
 						? (e) => {
 								e.preventDefault();
 								onMouseDown();
@@ -49,7 +49,7 @@ const PieceSpawner = ({
 				}
 				style={
 					match.players[playerIndex].userId === userId &&
-					match.players[0].spawnsAvailable > 0
+					match.players[playerIndex].spawnsAvailable > 0
 						? { cursor: 'grab' }
 						: {}
 				}
