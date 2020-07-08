@@ -164,7 +164,7 @@ const matchTimeouts = new Map<string, NodeJS.Timeout>();
 				}
 
 				if (variant.formation !== 'tutorial') {
-					await lobby.actors.endMatch(matchId);
+					await lobby.actors.endMatch({ matchId, status });
 				}
 			};
 

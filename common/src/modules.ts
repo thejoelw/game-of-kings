@@ -103,10 +103,15 @@ export const LobbyModule = {
 			}),
 		),
 
-		endMatch: makeReducer(t.string)<LobbyState>((state, matchId) => ({
+		endMatch: makeReducer(t.strict({ matchId: t.string, status: t.string }))<
+			LobbyState
+		>((state, { matchId, status }) => ({
 			...state,
 			liveMatchIds: state.liveMatchIds.filter((id) => id !== matchId),
-			recentMatchIds: [matchId, ...state.recentMatchIds].slice(0, 16),
+			recentMatchIds:
+				status === 'aborted'
+					? state.recentMatchIds
+					: [matchId, ...state.recentMatchIds].slice(0, 16),
 		})),
 	},
 };
