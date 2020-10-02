@@ -1,6 +1,7 @@
 import fs from 'fs';
 import http from 'http';
 import https from 'https';
+import tls from 'tls';
 import libstatic from 'node-static';
 import socketIO, { Socket } from 'socket.io';
 
@@ -12,17 +13,24 @@ const getEnvVar = (key: string) => {
 	return val;
 };
 
-const getCreds = () => ({
-	key: fs.readFileSync(
-		'/etc/letsencrypt/live/gameofkings.io/privkey.pem',
-		'utf8',
-	),
-	cert: fs.readFileSync(
-		'/etc/letsencrypt/live/gameofkings.io/cert.pem',
-		'utf8',
-	),
-	ca: fs.readFileSync('/etc/letsencrypt/live/gameofkings.io/chain.pem', 'utf8'),
-});
+let tlsCtx: tls.SecureContext;
+const updateTlsCtx = () =>
+	(tlsCtx = tls.createSecureContext({
+		key: fs.readFileSync(
+			'/etc/letsencrypt/live/gameofkings.io/privkey.pem',
+			'utf8',
+		),
+		cert: fs.readFileSync(
+			'/etc/letsencrypt/live/gameofkings.io/cert.pem',
+			'utf8',
+		),
+		ca: fs.readFileSync(
+			'/etc/letsencrypt/live/gameofkings.io/chain.pem',
+			'utf8',
+		),
+	}));
+updateTlsCtx();
+setInterval(updateTlsCtx, 1000 * 60 * 60 * 24);
 
 const fileServer = new libstatic.Server('../client/build');
 const cb = (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -49,13 +57,23 @@ const cb = (req: http.IncomingMessage, res: http.ServerResponse) => {
 
 const useHttps = parseInt(getEnvVar('USE_HTTPS'));
 const server = useHttps
-	? https.createServer(getCreds(), cb)
+	? https.createServer(
+			{
+				SNICallback: (servername, cb) => {
+					// TODO: Change based on servername?
+					cb(null, tlsCtx);
+				},
+			},
+			cb,
+	  )
 	: http.createServer(cb);
 
 if (useHttps) {
 	http
 		.createServer((req, res) => {
-			res.writeHead(301, { Location: 'https://' + req.headers.host + req.url });
+			res.writeHead(301, {
+				Location: 'https://' + req.headers.host + req.url,
+			});
 			res.end();
 		})
 		.listen(getEnvVar('HTTP_PORT'));
