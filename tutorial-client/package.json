@@ -11,7 +11,7 @@
     "fp-ts": "^2.6.6",
     "game-of-kings-common": "0.0.1",
     "io-ts": "^2.2.6",
-    "socket.io": "^2.3.0",
+    "socket.io": "^2.4.0",
     "socket.io-client": "^2.3.0",
     "uuid": "^8.1.0"
   },
